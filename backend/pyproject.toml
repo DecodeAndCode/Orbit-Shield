@@ -1,0 +1,69 @@
+[project]
+name = "collider-backend"
+version = "0.1.0"
+description = "ML-enhanced satellite collision avoidance system"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+
+    # Database
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "psycopg2-binary>=2.9.10",
+
+    # Config
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+
+    # Task queue
+    "celery[redis]>=5.4.0",
+
+    # HTTP client
+    "httpx>=0.28.0",
+
+    # Orbital mechanics
+    "sgp4>=2.23",
+    "astropy>=6.1",
+
+    # Data processing
+    "numpy>=2.1",
+    "pandas>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-httpx>=0.35",
+    "aiosqlite>=0.20",
+    "black>=24.10",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
