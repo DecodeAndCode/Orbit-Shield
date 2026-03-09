@@ -54,6 +54,10 @@ celery_app.conf.update(
             "task": "src.ingestion.tasks.fetch_space_weather",
             "schedule": crontab(minute=45, hour="*/3"),
         },
+        "run-conjunction-screening": {
+            "task": "src.propagation.tasks.run_conjunction_screening",
+            "schedule": crontab(minute=0, hour="*/8"),
+        },
     },
 )
 

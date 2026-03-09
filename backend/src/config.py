@@ -36,5 +36,12 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
 
+    # Propagation
+    propagation_step_seconds: int = 60
+    propagation_window_hours: int = 72
+    screening_radius_km: float = 5.0
+    inclination_filter_deg: float = 15.0
+    altitude_overlap_margin_km: float = 50.0
+
 
 settings = Settings()
