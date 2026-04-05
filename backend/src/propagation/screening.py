@@ -39,6 +39,7 @@ class ConjunctionEvent:
     relative_velocity_kms: float
     relative_position_km: np.ndarray | None = None
     relative_velocity_kms_vec: np.ndarray | None = None
+    pc_classical: float | None = None
 
 
 def screen_conjunctions(

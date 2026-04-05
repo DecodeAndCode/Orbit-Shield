@@ -45,6 +45,12 @@ dev = [
     "mypy>=1.13",
 ]
 
+ml = [
+    "scikit-learn>=1.5",
+    "xgboost>=2.1",
+    "joblib>=1.4",
+]
+
 [build-system]
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
