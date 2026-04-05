@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
-from sgp4.api import Satrec, SatrecArray, jday
+from sgp4.api import WGS72OLD, Satrec, SatrecArray, jday
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
@@ -81,6 +81,51 @@ def _compute_altitudes(mean_motion_revs_per_day: float, eccentricity: float) -> 
     return perigee, apogee
 
 
+def _satrec_from_elements(row: OrbitalElement) -> Satrec:
+    """Build a Satrec object from orbital element fields (OMM data).
+
+    Used when TLE line strings are not available (e.g., CelesTrak OMM JSON).
+
+    Args:
+        row: OrbitalElement with mean_motion, eccentricity, inclination, etc.
+
+    Returns:
+        Configured Satrec object ready for propagation.
+    """
+    sat = Satrec()
+    sat.sgp4init(
+        WGS72OLD,
+        "i",  # improved mode
+        row.norad_id,
+        # epoch as Julian days since 1949-12-31 (sgp4 epoch format)
+        _datetime_to_sgp4_epoch(row.epoch),
+        row.bstar or 0.0,
+        0.0,  # ndot (not used in SGP4)
+        0.0,  # nddot (not used in SGP4)
+        row.eccentricity,
+        math.radians(row.arg_perigee or 0.0),
+        math.radians(row.inclination or 0.0),
+        math.radians(row.mean_anomaly or 0.0),
+        row.mean_motion * 2.0 * math.pi / 1440.0,  # rev/day → rad/min
+        math.radians(row.raan or 0.0),
+    )
+    return sat
+
+
+def _datetime_to_sgp4_epoch(dt: datetime) -> float:
+    """Convert datetime to SGP4 epoch (Julian days since 1949-12-31 00:00 UT).
+
+    Args:
+        dt: UTC datetime of the TLE epoch.
+
+    Returns:
+        Days since 1949-12-31 00:00 UT.
+    """
+    jd, fr = jday(dt.year, dt.month, dt.day, dt.hour, dt.minute,
+                  dt.second + dt.microsecond / 1e6)
+    return (jd + fr) - 2433281.5
+
+
 def load_catalog(session: Session) -> list[CatalogEntry]:
     """Load the latest TLE per satellite from the orbital_elements table.
 
@@ -118,12 +163,15 @@ def load_catalog(session: Session) -> list[CatalogEntry]:
     catalog: list[CatalogEntry] = []
 
     for row in rows:
-        if not row.tle_line1 or not row.tle_line2:
-            continue
         try:
-            sat = Satrec.twoline2rv(row.tle_line1, row.tle_line2)
+            if row.tle_line1 and row.tle_line2:
+                sat = Satrec.twoline2rv(row.tle_line1, row.tle_line2)
+            elif row.mean_motion is not None and row.eccentricity is not None:
+                sat = _satrec_from_elements(row)
+            else:
+                continue
         except Exception:
-            logger.warning("Failed to parse TLE for NORAD %d, skipping", row.norad_id)
+            logger.warning("Failed to build Satrec for NORAD %d, skipping", row.norad_id)
             continue
 
         # Use mean motion from the Satrec object (revs/day stored internally as rad/min)

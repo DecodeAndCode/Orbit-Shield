@@ -115,20 +115,26 @@ def fetch_celestrak_tles(self):
                 )
                 session.execute(stmt)
 
-                elem = OrbitalElement(
-                    norad_id=record.norad_id,
-                    epoch=record.epoch,
-                    tle_line1=record.tle_line1,
-                    tle_line2=record.tle_line2,
-                    mean_motion=record.mean_motion,
-                    eccentricity=record.eccentricity,
-                    inclination=record.inclination,
-                    raan=record.raan,
-                    arg_perigee=record.arg_perigee,
-                    mean_anomaly=record.mean_anomaly,
-                    bstar=record.bstar,
+                elem_stmt = (
+                    pg_insert(OrbitalElement.__table__)
+                    .values(
+                        norad_id=record.norad_id,
+                        epoch=record.epoch,
+                        tle_line1=record.tle_line1,
+                        tle_line2=record.tle_line2,
+                        mean_motion=record.mean_motion,
+                        eccentricity=record.eccentricity,
+                        inclination=record.inclination,
+                        raan=record.raan,
+                        arg_perigee=record.arg_perigee,
+                        mean_anomaly=record.mean_anomaly,
+                        bstar=record.bstar,
+                    )
+                    .on_conflict_do_nothing(
+                        constraint="uq_orbital_element_norad_epoch",
+                    )
                 )
-                session.add(elem)
+                session.execute(elem_stmt)
 
             session.commit()
             logger.info(f"Upserted {len(records)} satellites and orbital elements")

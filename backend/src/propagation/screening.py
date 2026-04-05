@@ -37,6 +37,8 @@ class ConjunctionEvent:
     tca: datetime
     miss_distance_km: float
     relative_velocity_kms: float
+    relative_position_km: np.ndarray | None = None
+    relative_velocity_kms_vec: np.ndarray | None = None
 
 
 def screen_conjunctions(
@@ -87,29 +89,39 @@ def screen_conjunctions(
         return []
 
     # Stage 3: k-d tree spatial search
+    # Use a larger coarse radius to account for satellite motion between time steps.
+    # At LEO speeds (~7.5 km/s), objects move ~450 km per 60s step.
+    # Coarse radius = max_relative_velocity * step_seconds / 2 + screening_radius
+    # Max relative velocity ~15 km/s (head-on LEO), so for 60s steps: 15*30 + 5 = 455 km
+    step_seconds = (prop_result.times[1] - prop_result.times[0]).total_seconds() if len(prop_result.times) > 1 else 60
+    max_rel_velocity_kms = 15.0  # Conservative max for LEO head-on encounters
+    coarse_radius_km = max_rel_velocity_kms * step_seconds / 2.0 + screening_radius_km
+    logger.info("Using coarse screening radius: %.0f km (step=%ds)", coarse_radius_km, step_seconds)
+
     coarse_hits = kdtree_screen(
         prop_result.positions,
         prop_result.times,
         candidate_pairs,
-        screening_radius_km,
+        coarse_radius_km,
     )
     logger.info("Stage 3 (k-d tree): %d close approach candidates found", len(coarse_hits))
 
     if not coarse_hits:
         return []
 
-    # Stage 4: Refine TCA for each candidate
+    # Stage 4: Refine TCA for each candidate, then filter by actual screening radius
     events: list[ConjunctionEvent] = []
     for (i, j), step_idx in coarse_hits.items():
         event = refine_tca(
             catalog[i],
             catalog[j],
             prop_result.times[step_idx],
+            window_seconds=step_seconds,
         )
-        if event is not None:
+        if event is not None and event.miss_distance_km <= screening_radius_km:
             events.append(event)
 
-    logger.info("Stage 4 (TCA refinement): %d conjunction events confirmed", len(events))
+    logger.info("Stage 4 (TCA refinement): %d conjunction events within %.1f km", len(events), screening_radius_km)
     return events
 
 
@@ -219,19 +231,27 @@ def kdtree_screen(
     for t in range(n_steps):
         pos_at_t = positions[:, t, :]  # (n_sats, 3)
 
-        # Skip if any NaN (can happen with SGP4 errors)
-        if np.any(np.isnan(pos_at_t)):
+        # Find satellites with valid (non-NaN) positions at this step
+        valid_at_t = ~np.any(np.isnan(pos_at_t), axis=1)
+        valid_indices_t = np.where(valid_at_t)[0]
+
+        if len(valid_indices_t) < 2:
             continue
 
-        tree = cKDTree(pos_at_t)
+        # Build k-d tree from valid positions only
+        valid_positions = pos_at_t[valid_indices_t]
+        tree = cKDTree(valid_positions)
         step_pairs = tree.query_pairs(r=radius_km)
 
-        for pair in step_pairs:
-            pair_sorted = (min(pair), max(pair))
+        for local_a, local_b in step_pairs:
+            # Map back from local k-d tree indices to global catalog indices
+            global_a = int(valid_indices_t[local_a])
+            global_b = int(valid_indices_t[local_b])
+            pair_sorted = (min(global_a, global_b), max(global_a, global_b))
             if pair_sorted not in candidate_pairs:
                 continue
 
-            dist = float(np.linalg.norm(pos_at_t[pair[0]] - pos_at_t[pair[1]]))
+            dist = float(np.linalg.norm(pos_at_t[global_a] - pos_at_t[global_b]))
             if pair_sorted not in best or dist < best[pair_sorted][1]:
                 best[pair_sorted] = (t, dist)
 
@@ -309,7 +329,7 @@ def refine_tca(
     )
 
     tca = t_start + timedelta(seconds=result.x)
-    dist, _, vel_diff = _sgp4_distance(entry_a.satrec, entry_b.satrec, tca)
+    dist, pos_diff, vel_diff = _sgp4_distance(entry_a.satrec, entry_b.satrec, tca)
 
     if math.isinf(dist):
         return None
@@ -322,4 +342,6 @@ def refine_tca(
         tca=tca,
         miss_distance_km=dist,
         relative_velocity_kms=rel_vel,
+        relative_position_km=pos_diff,
+        relative_velocity_kms_vec=vel_diff,
     )
