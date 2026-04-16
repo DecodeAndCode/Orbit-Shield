@@ -8,13 +8,14 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.db.models import Base, Satellite, OrbitalElement, Conjunction
+from src.db.models import Base, Satellite, OrbitalElement, Conjunction, CDMHistory
 
-# Tables that are SQLite-compatible (no ARRAY or JSONB columns)
+# Tables that are SQLite-compatible (or made compatible via type overrides below)
 _SQLITE_TABLES = [
     Satellite.__table__,
     OrbitalElement.__table__,
     Conjunction.__table__,
+    CDMHistory.__table__,
 ]
 
 
@@ -39,14 +40,22 @@ async def db_session():
     # Patch BigInteger columns to Integer for SQLite DDL
     from sqlalchemy.dialects import sqlite as sqlite_dialect
     from sqlalchemy import Column
+    from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 
     # Override BigInteger rendering for SQLite: visit_BIGINT → INTEGER
-    orig = sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT
+    orig_bigint = sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT
 
     def _visit_bigint(self, type_, **kw):
         return "INTEGER"
 
+    # Override JSONB rendering for SQLite: JSONB → TEXT
+    orig_jsonb = getattr(sqlite_dialect.base.SQLiteTypeCompiler, "visit_JSONB", None)
+
+    def _visit_jsonb(self, type_, **kw):
+        return "TEXT"
+
     sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT = _visit_bigint
+    sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB = _visit_jsonb
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
@@ -56,8 +65,12 @@ async def db_session():
             )
         )
 
-    # Restore original
-    sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT = orig
+    # Restore originals
+    sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT = orig_bigint
+    if orig_jsonb is None:
+        del sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB
+    else:
+        sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB = orig_jsonb
 
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
