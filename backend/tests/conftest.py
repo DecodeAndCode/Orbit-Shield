@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.db.models import Base, Satellite, OrbitalElement, Conjunction, CDMHistory
+from src.db.models import Base, Satellite, OrbitalElement, Conjunction, CDMHistory, AlertConfig
 
 # Tables that are SQLite-compatible (or made compatible via type overrides below)
 _SQLITE_TABLES = [
@@ -16,6 +16,7 @@ _SQLITE_TABLES = [
     OrbitalElement.__table__,
     Conjunction.__table__,
     CDMHistory.__table__,
+    AlertConfig.__table__,
 ]
 
 
@@ -54,8 +55,15 @@ async def db_session():
     def _visit_jsonb(self, type_, **kw):
         return "TEXT"
 
+    # Override ARRAY rendering for SQLite: ARRAY → TEXT
+    orig_array = getattr(sqlite_dialect.base.SQLiteTypeCompiler, "visit_ARRAY", None)
+
+    def _visit_array(self, type_, **kw):
+        return "TEXT"
+
     sqlite_dialect.base.SQLiteTypeCompiler.visit_BIGINT = _visit_bigint
     sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB = _visit_jsonb
+    sqlite_dialect.base.SQLiteTypeCompiler.visit_ARRAY = _visit_array
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
@@ -71,6 +79,10 @@ async def db_session():
         del sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB
     else:
         sqlite_dialect.base.SQLiteTypeCompiler.visit_JSONB = orig_jsonb
+    if orig_array is None:
+        del sqlite_dialect.base.SQLiteTypeCompiler.visit_ARRAY
+    else:
+        sqlite_dialect.base.SQLiteTypeCompiler.visit_ARRAY = orig_array
 
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
