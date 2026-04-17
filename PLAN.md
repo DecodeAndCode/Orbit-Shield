@@ -98,15 +98,15 @@ Build a system that ingests real-time orbital data, propagates trajectories, det
 - [ ] Compare ML Pc predictions vs. classical Pc
 
 ### Phase 5: Web Dashboard & Alert System (Weeks 10–14)
-- [ ] FastAPI backend serving propagation results, conjunction data, ML predictions
-- [ ] React + CesiumJS frontend:
-  - 3D globe view with orbits, color-coded conjunction risk
-  - Conjunction timeline sorted by Pc with countdown timers
-  - Event deep-dive: miss distance trend, Pc evolution, orbital geometry
-  - Alert configuration: thresholds, notification channels, watched satellites
-  - ML Insights panel: ML vs. classical Pc, confidence intervals
-- [ ] WebSocket real-time updates
-- [ ] Email/Slack/Discord alert integration
+- [x] FastAPI backend serving propagation results, conjunction data, ML predictions
+- [x] React + CesiumJS frontend:
+  - [x] 3D globe view with orbits, color-coded conjunction risk
+  - [x] Conjunction timeline sorted by Pc with countdown timers
+  - [x] Event deep-dive: miss distance trend, Pc evolution, orbital geometry
+  - [x] Alert configuration: thresholds, notification channels, watched satellites
+  - [x] ML Insights panel: ML vs. classical Pc, confidence intervals
+- [x] WebSocket real-time updates
+- [ ] Email/Slack/Discord alert integration (deferred — Phase 6)
 
 ### Phase 6: Integration & Polish (Weeks 12–14)
 - [ ] End-to-end testing with live data
