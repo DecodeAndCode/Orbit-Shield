@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings  # noqa: F401
 from src.api.routes import api_router
+from src.api.websocket import conjunction_websocket
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.websocket("/ws/conjunctions")(conjunction_websocket)
 
 
 @app.get("/health")
