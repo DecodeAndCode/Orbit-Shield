@@ -5,6 +5,7 @@ import {
   Color,
   UrlTemplateImageryProvider,
   ImageryLayer,
+  EllipsoidTerrainProvider,
 } from "cesium";
 import { usePropagate, useConjunctions } from "../api/client";
 import { useColliderStore } from "../stores/colliderStore";
@@ -35,18 +36,18 @@ export default function GlobeView() {
 
   const baseLayer = useMemo(
     () =>
-      ImageryLayer.fromProviderAsync(
-        Promise.resolve(
-          new UrlTemplateImageryProvider({
-            url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            credit: "© OpenStreetMap contributors",
-            maximumLevel: 18,
-          })
-        ),
+      new ImageryLayer(
+        new UrlTemplateImageryProvider({
+          url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+          credit: "© OpenStreetMap contributors",
+          maximumLevel: 18,
+        }),
         {}
       ),
     []
   );
+
+  const terrainProvider = useMemo(() => new EllipsoidTerrainProvider(), []);
 
   return (
     <Viewer
@@ -61,6 +62,7 @@ export default function GlobeView() {
       selectionIndicator={false}
       infoBox={false}
       baseLayer={baseLayer}
+      terrainProvider={terrainProvider}
       style={{ height: "100%", width: "100%" }}
     >
       {propagation?.map((sat) => {
