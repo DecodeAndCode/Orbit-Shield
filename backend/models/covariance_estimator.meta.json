@@ -1,0 +1,26 @@
+{
+  "name": "covariance_estimator",
+  "version": "1.0.0",
+  "feature_names": [
+    "mean_motion",
+    "eccentricity",
+    "inclination",
+    "bstar",
+    "perigee_alt_km",
+    "apogee_alt_km",
+    "semi_major_axis_km",
+    "orbital_period_minutes",
+    "object_type_encoded",
+    "rcs_size_encoded",
+    "tle_age_hours",
+    "tle_count_30d",
+    "is_leo",
+    "ballistic_coefficient_proxy"
+  ],
+  "metrics": {
+    "rmse": 0.1604542100360213,
+    "r2": 0.8729503170153406
+  },
+  "n_samples": 5000,
+  "saved_at": "2026-04-18T16:19:13.129837+00:00"
+}

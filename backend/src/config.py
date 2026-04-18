@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
 
+    # Alerts: SMTP (email)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "alerts@collider.local"
+    smtp_use_tls: bool = True
+
+    # Alerts: default webhooks (optional global fallback)
+    slack_webhook_url: str = ""
+    discord_webhook_url: str = ""
+
     # Propagation
     propagation_step_seconds: int = 60
     propagation_window_hours: int = 72

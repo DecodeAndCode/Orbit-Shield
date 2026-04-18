@@ -1,9 +1,11 @@
-"""Notification dispatchers (email, slack, discord). Stubs log + try webhook."""
+"""Notification dispatchers — email (SMTP), Slack, Discord."""
 
 from __future__ import annotations
 
 import json
 import logging
+import smtplib
+from email.message import EmailMessage
 from typing import Callable
 
 import httpx
@@ -27,34 +29,64 @@ def _format(c: Conjunction, cfg: AlertConfig) -> str:
 
 
 def _email(target: str, c: Conjunction, cfg: AlertConfig) -> None:
-    msg = _format(c, cfg)
-    smtp = getattr(settings, "smtp_url", None)
-    if not smtp:
-        logger.info("[email stub -> %s]\n%s", target, msg)
+    """Send email via SMTP. Falls back to log if SMTP_HOST unset."""
+    msg_body = _format(c, cfg)
+    if not settings.smtp_host:
+        logger.info("[email stub -> %s]\n%s", target, msg_body)
         return
-    # Real SMTP integration deferred. Stub logs.
-    logger.info("[email -> %s] %s", target, msg)
+
+    pc = c.pc_ml if c.pc_ml is not None else c.pc_classical
+    pc_str = f"{pc:.2e}" if pc is not None else "N/A"
+
+    msg = EmailMessage()
+    msg["From"] = settings.smtp_from
+    msg["To"] = target
+    msg["Subject"] = f"[Collider] Conjunction Alert — Pc={pc_str}"
+    msg.set_content(msg_body)
+
+    try:
+        if settings.smtp_use_tls:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as s:
+                s.starttls()
+                if settings.smtp_user:
+                    s.login(settings.smtp_user, settings.smtp_password)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as s:
+                if settings.smtp_user:
+                    s.login(settings.smtp_user, settings.smtp_password)
+                s.send_message(msg)
+        logger.info("email sent -> %s (Pc=%s)", target, pc_str)
+    except Exception:
+        logger.exception("SMTP send failed for %s", target)
 
 
 def _slack(target: str, c: Conjunction, cfg: AlertConfig) -> None:
+    """Post to Slack webhook. Uses per-alert target, falls back to global."""
     msg = _format(c, cfg)
-    if not target.startswith("http"):
+    url = target if target.startswith("http") else settings.slack_webhook_url
+    if not url:
         logger.info("[slack stub channel=%s]\n%s", target, msg)
         return
-    payload = {"text": msg}
     try:
-        httpx.post(target, json=payload, timeout=5.0)
+        r = httpx.post(url, json={"text": msg}, timeout=5.0)
+        r.raise_for_status()
+        logger.info("slack posted -> %s", target)
     except Exception:
         logger.exception("slack webhook failed")
 
 
 def _discord(target: str, c: Conjunction, cfg: AlertConfig) -> None:
+    """Post to Discord webhook. Uses per-alert target, falls back to global."""
     msg = _format(c, cfg)
-    if not target.startswith("http"):
+    url = target if target.startswith("http") else settings.discord_webhook_url
+    if not url:
         logger.info("[discord stub channel=%s]\n%s", target, msg)
         return
     try:
-        httpx.post(target, json={"content": msg}, timeout=5.0)
+        r = httpx.post(url, json={"content": msg}, timeout=5.0)
+        r.raise_for_status()
+        logger.info("discord posted -> %s", target)
     except Exception:
         logger.exception("discord webhook failed")
 

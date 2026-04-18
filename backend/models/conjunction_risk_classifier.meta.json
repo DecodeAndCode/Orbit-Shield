@@ -1,0 +1,39 @@
+{
+  "name": "conjunction_risk_classifier",
+  "version": "1.0.0",
+  "feature_names": [
+    "miss_distance_km",
+    "relative_velocity_kms",
+    "b_plane_x_km",
+    "b_plane_y_km",
+    "approach_angle_deg",
+    "pri_mean_motion",
+    "pri_eccentricity",
+    "pri_inclination",
+    "pri_perigee_alt_km",
+    "pri_apogee_alt_km",
+    "pri_bstar",
+    "sec_mean_motion",
+    "sec_eccentricity",
+    "sec_inclination",
+    "sec_perigee_alt_km",
+    "sec_apogee_alt_km",
+    "sec_bstar",
+    "combined_sigma_km",
+    "sigma_ratio",
+    "mahalanobis_estimate",
+    "f107_flux",
+    "kp_index"
+  ],
+  "metrics": {
+    "accuracy": 0.993,
+    "precision": 0.9484978540772532,
+    "recall": 0.9910313901345291,
+    "f1": 0.9692982456140351,
+    "auc": 0.9998384943637056
+  },
+  "n_samples": 10000,
+  "n_positive": 1114,
+  "n_negative": 8886,
+  "saved_at": "2026-04-18T16:19:17.539904+00:00"
+}
