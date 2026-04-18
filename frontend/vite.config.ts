@@ -19,6 +19,19 @@ export default defineConfig({
   define: {
     CESIUM_BASE_URL: JSON.stringify("/cesium"),
   },
+  build: {
+    chunkSizeWarningLimit: 6000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          cesium: ["cesium", "resium"],
+          react: ["react", "react-dom"],
+          query: ["@tanstack/react-query", "zustand"],
+          charts: ["recharts"],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       "/api": "http://localhost:8000",
