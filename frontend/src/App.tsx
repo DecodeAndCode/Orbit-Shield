@@ -5,6 +5,8 @@ import EventDetailPanel from "./components/EventDetailPanel";
 import AlertConfigForm from "./components/AlertConfigForm";
 import FilterPanel from "./components/FilterPanel";
 import HoverTooltip from "./components/HoverTooltip";
+import SatDetailCard from "./components/SatDetailCard";
+import ResetViewButton from "./components/ResetViewButton";
 import { useColliderStore } from "./stores/colliderStore";
 
 export default function App() {
@@ -43,6 +45,8 @@ export default function App() {
             <GlobeView />
             <GlobeLegend />
             <HoverTooltip />
+            <SatDetailCard />
+            <ResetViewButton />
           </div>
 
           {/* Detail panel — collapsible */}

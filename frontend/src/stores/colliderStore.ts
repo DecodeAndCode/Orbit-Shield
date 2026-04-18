@@ -37,6 +37,9 @@ interface ColliderStore extends FilterState {
   focusNoradId: number | null;
   focusOnSat: (id: number | null) => void;
 
+  clickedSatId: number | null;
+  setClickedSat: (id: number | null) => void;
+
   // Layout
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -70,7 +73,10 @@ export const useColliderStore = create<ColliderStore>((set) => ({
   setHoveredSat: (h) => set({ hoveredSat: h }),
 
   focusNoradId: null,
-  focusOnSat: (id) => set({ focusNoradId: id }),
+  focusOnSat: (id) => set({ focusNoradId: id, clickedSatId: id }),
+
+  clickedSatId: null,
+  setClickedSat: (id) => set({ clickedSatId: id }),
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

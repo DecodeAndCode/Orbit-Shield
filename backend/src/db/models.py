@@ -133,6 +133,7 @@ class CDMHistory(Base):
     conjunction_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("conjunctions.id"), index=True
     )
+    cdm_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     cdm_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     tca: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     miss_distance_km: Mapped[float | None] = mapped_column(Float)

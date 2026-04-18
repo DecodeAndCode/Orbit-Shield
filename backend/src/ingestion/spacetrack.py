@@ -11,6 +11,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import httpx
 
@@ -106,6 +107,26 @@ class SpaceTrackClient:
     async def fetch_cdm_public(self, days: int = 7) -> list[dict]:
         """Fetch public CDM records from the last N days."""
         path = f"/class/cdm_public/CREATION_DATE/>now-{days}/orderby/TCA/format/json"
+        return await self._query(path)
+
+    async def fetch_cdms_between(
+        self,
+        start: datetime,
+        end: datetime,
+        limit: int | None = None,
+    ) -> list[dict]:
+        """Fetch CDMs with CREATION_DATE in [start, end).
+
+        Space-Track date predicates use 'YYYY-MM-DD HH:MM:SS' with '--' for ranges.
+        """
+        s = start.strftime("%Y-%m-%d%%20%H:%M:%S")
+        e = end.strftime("%Y-%m-%d%%20%H:%M:%S")
+        path = (
+            f"/class/cdm_public/CREATION_DATE/{s}--{e}"
+            f"/orderby/CREATION_DATE/format/json"
+        )
+        if limit:
+            path += f"/limit/{limit}"
         return await self._query(path)
 
     async def close(self) -> None:

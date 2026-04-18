@@ -54,6 +54,10 @@ celery_app.conf.update(
             "task": "src.ingestion.tasks.fetch_space_weather",
             "schedule": crontab(minute=45, hour="*/3"),
         },
+        "fetch-spacetrack-cdms": {
+            "task": "src.ingestion.tasks.fetch_spacetrack_cdms",
+            "schedule": crontab(minute=20, hour="*/1"),
+        },
         "run-conjunction-screening": {
             "task": "src.propagation.tasks.run_conjunction_screening",
             "schedule": crontab(minute=0, hour="*/8"),
@@ -283,6 +287,46 @@ def fetch_socrates_conjunctions(self):
 
     except Exception as exc:
         logger.error(f"SOCRATES fetch failed: {exc}")
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=600)
+def fetch_spacetrack_cdms(self, days: int = 1):
+    """Hourly: fetch recent Space-Track CDMs and upsert into cdm_history."""
+    from src.ingestion.cdm_parser import parse_cdm
+    from src.ingestion.cdm_store import upsert_cdm
+    from src.ingestion.spacetrack import SpaceTrackClient
+
+    async def _fetch():
+        client = SpaceTrackClient()
+        try:
+            return await client.fetch_cdm_public(days=days)
+        finally:
+            await client.close()
+
+    try:
+        records = _run_async(_fetch())
+        logger.info(f"Fetched {len(records)} CDMs from Space-Track")
+
+        session = _get_sync_session()
+        parsed_ok = 0
+        try:
+            for record in records:
+                parsed = parse_cdm(record)
+                if parsed is None:
+                    continue
+                upsert_cdm(session, parsed)
+                parsed_ok += 1
+            session.commit()
+            logger.info(f"Upserted {parsed_ok}/{len(records)} CDMs")
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    except Exception as exc:
+        logger.error(f"CDM fetch failed: {exc}")
         raise self.retry(exc=exc)
 
 

@@ -22,6 +22,7 @@ import {
   VerticalOrigin,
   Cartesian2,
   HeightReference,
+  CallbackProperty,
   Viewer as CesiumViewer,
 } from "cesium";
 import {
@@ -78,6 +79,33 @@ export default function GlobeView() {
 
   const { data: propagation } = usePropagate(noradIds, 2, 1);
   const selectedConj = conjunctions?.find((c) => c.id === selectedId);
+
+  // Position for focused/searched sat highlight halo
+  const focusPos = useMemo(() => {
+    if (focusNoradId === null) return null;
+    const p = catalogIndex.current.get(focusNoradId);
+    if (!p) return null;
+    return Cartesian3.fromDegrees(p.lon, p.lat, p.alt * 1000);
+  }, [focusNoradId, catalog]);
+
+  // Pulsing pixel size: 18..36 over ~1.2s
+  const pulseSize = useMemo(
+    () =>
+      new CallbackProperty(() => {
+        const t = (Date.now() % 1200) / 1200;
+        return 20 + Math.sin(t * Math.PI * 2) * 10;
+      }, false),
+    []
+  );
+  const pulseColor = useMemo(
+    () =>
+      new CallbackProperty(() => {
+        const t = (Date.now() % 1200) / 1200;
+        const a = 0.35 + Math.sin(t * Math.PI * 2) * 0.3;
+        return Color.fromCssColorString("#facc15").withAlpha(a);
+      }, false),
+    []
+  );
 
   const baseLayer = useMemo(
     () =>
@@ -229,6 +257,30 @@ export default function GlobeView() {
       terrainProvider={terrainProvider}
       style={{ height: "100%", width: "100%" }}
     >
+      {focusPos && (
+        <Entity key={`focus-halo-${focusNoradId}`} position={focusPos}>
+          <PointGraphics
+            pixelSize={pulseSize as unknown as number}
+            color={pulseColor as unknown as Color}
+            outlineColor={Color.fromCssColorString("#facc15")}
+            outlineWidth={2}
+            heightReference={HeightReference.NONE}
+          />
+          <LabelGraphics
+            text="◎ SEARCHED"
+            font="10px Inter, sans-serif"
+            fillColor={Color.fromCssColorString("#facc15")}
+            outlineColor={Color.BLACK}
+            outlineWidth={2}
+            style={LabelStyle.FILL_AND_OUTLINE}
+            verticalOrigin={VerticalOrigin.BOTTOM}
+            pixelOffset={new Cartesian2(0, -24)}
+            showBackground
+            backgroundColor={Color.fromCssColorString("#0a101c").withAlpha(0.9)}
+            backgroundPadding={new Cartesian2(6, 4)}
+          />
+        </Entity>
+      )}
       {showOrbits &&
         propagation?.map((sat) => {
           if (sat.positions.length < 2) return null;
