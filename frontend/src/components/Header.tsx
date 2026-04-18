@@ -8,6 +8,7 @@ export default function Header() {
   const { data } = useSatellites(search || undefined);
   const setAlertModalOpen = useColliderStore((s) => s.setAlertModalOpen);
   const setFilterDrawerOpen = useColliderStore((s) => s.setFilterDrawerOpen);
+  const focusOnSat = useColliderStore((s) => s.focusOnSat);
 
   return (
     <header className="flex items-center justify-between px-3 md:px-4 h-12 bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)] gap-3">
@@ -61,12 +62,15 @@ export default function Header() {
               <div
                 key={sat.norad_id}
                 className="px-3 py-2 text-xs hover:bg-[var(--color-bg-elevated)] cursor-pointer flex items-center justify-between"
-                onClick={() => setSearch("")}
+                onClick={() => {
+                  focusOnSat(sat.norad_id);
+                  setSearch("");
+                }}
               >
-                <span className="text-[var(--color-text-primary)]">
+                <span className="text-[var(--color-text-primary)] truncate">
                   {sat.name}
                 </span>
-                <span className="text-[var(--color-text-muted)] mono">
+                <span className="text-[var(--color-text-muted)] mono ml-2 flex-shrink-0">
                   #{sat.norad_id}
                 </span>
               </div>

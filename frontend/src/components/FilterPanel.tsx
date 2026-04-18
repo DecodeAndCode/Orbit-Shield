@@ -192,9 +192,9 @@ export default function FilterPanel() {
               className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
             >
               <option value="">Any</option>
-              <option value="1e-8">≥ 1e-8</option>
-              <option value="1e-6">≥ 1e-6 (Medium)</option>
-              <option value="1e-4">≥ 1e-4 (High)</option>
+              <option value={String(1e-8)}>≥ 1e-8</option>
+              <option value={String(1e-6)}>≥ 1e-6 (Medium)</option>
+              <option value={String(1e-4)}>≥ 1e-4 (High)</option>
             </select>
           </div>
         </Section>

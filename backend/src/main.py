@@ -39,3 +39,15 @@ app.websocket("/ws/conjunctions")(conjunction_websocket)
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "collider"}
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root — landing info. Humans should go to /docs or the frontend."""
+    return {
+        "service": "collider",
+        "status": "ok",
+        "docs": "/docs",
+        "frontend": "http://localhost:5173",
+        "health": "/health",
+    }

@@ -4,6 +4,7 @@ import GlobeView from "./components/GlobeView";
 import EventDetailPanel from "./components/EventDetailPanel";
 import AlertConfigForm from "./components/AlertConfigForm";
 import FilterPanel from "./components/FilterPanel";
+import HoverTooltip from "./components/HoverTooltip";
 import { useColliderStore } from "./stores/colliderStore";
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
           <div className="flex-1 relative bg-[var(--color-bg-primary)]">
             <GlobeView />
             <GlobeLegend />
+            <HoverTooltip />
           </div>
 
           {/* Detail panel — collapsible */}

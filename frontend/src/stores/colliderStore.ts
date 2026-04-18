@@ -14,9 +14,28 @@ interface FilterState {
   showOrbits: boolean;
 }
 
+export interface HoverInfo {
+  norad_id: number;
+  name: string | null;
+  object_type: string | null;
+  country: string | null;
+  alt_km: number;
+  lat_deg: number;
+  lon_deg: number;
+  regime: Regime;
+  screenX: number;
+  screenY: number;
+}
+
 interface ColliderStore extends FilterState {
   selectedConjunctionId: number | null;
   selectConjunction: (id: number | null) => void;
+
+  hoveredSat: HoverInfo | null;
+  setHoveredSat: (h: HoverInfo | null) => void;
+
+  focusNoradId: number | null;
+  focusOnSat: (id: number | null) => void;
 
   // Layout
   sidebarCollapsed: boolean;
@@ -46,6 +65,12 @@ const DEFAULT_RISKS: RiskLevel[] = ["high", "medium", "low"];
 export const useColliderStore = create<ColliderStore>((set) => ({
   selectedConjunctionId: null,
   selectConjunction: (id) => set({ selectedConjunctionId: id }),
+
+  hoveredSat: null,
+  setHoveredSat: (h) => set({ hoveredSat: h }),
+
+  focusNoradId: null,
+  focusOnSat: (id) => set({ focusNoradId: id }),
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
