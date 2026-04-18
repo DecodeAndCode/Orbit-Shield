@@ -1,7 +1,7 @@
 import type { ConjunctionResponse } from "../api/types";
 
 function riskColor(pc: number | null): string {
-  if (pc === null) return "var(--color-text-secondary)";
+  if (pc === null) return "var(--color-text-muted)";
   if (pc >= 1e-4) return "var(--color-risk-high)";
   if (pc >= 1e-6) return "var(--color-risk-medium)";
   return "var(--color-risk-low)";
@@ -27,29 +27,49 @@ interface Props {
   onClick: () => void;
 }
 
-export default function ConjunctionCard({ conjunction: c, selected, onClick }: Props) {
-  const color = riskColor(c.pc_classical);
+export default function ConjunctionCard({
+  conjunction: c,
+  selected,
+  onClick,
+}: Props) {
+  const effectivePc = c.pc_ml ?? c.pc_classical;
+  const color = riskColor(effectivePc);
+  const hasMl = c.pc_ml !== null;
 
   return (
     <div
       onClick={onClick}
-      className={`p-3 mx-2 my-1.5 rounded cursor-pointer border transition-colors ${
+      className={`px-3 py-2.5 mx-2 my-1 rounded cursor-pointer border transition-all ${
         selected
-          ? "border-[var(--color-accent)] bg-[var(--color-bg-card)]"
-          : "border-transparent hover:bg-[var(--color-bg-card)]"
+          ? "border-[var(--color-accent)] bg-[var(--color-bg-elevated)]"
+          : "border-transparent hover:bg-[var(--color-bg-card)] hover:border-[var(--color-border)]"
       }`}
     >
-      <div className="flex justify-between items-start">
-        <div className="text-sm font-medium">
-          {c.primary_name || `#${c.primary_norad_id}`}
-          <span className="text-[var(--color-text-secondary)]"> vs </span>
-          {c.secondary_name || `#${c.secondary_norad_id}`}
+      <div className="flex justify-between items-start gap-2">
+        <div className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+          <span className="truncate">
+            {c.primary_name || `#${c.primary_norad_id}`}
+          </span>
+          <span className="text-[var(--color-text-muted)] mx-1">×</span>
+          <span className="truncate">
+            {c.secondary_name || `#${c.secondary_norad_id}`}
+          </span>
         </div>
-        <span className="text-xs font-mono" style={{ color }}>
-          {formatPc(c.pc_classical)}
-        </span>
+        <div className="flex flex-col items-end flex-shrink-0">
+          <span
+            className="text-[11px] mono tabular font-semibold"
+            style={{ color }}
+          >
+            {formatPc(effectivePc)}
+          </span>
+          {hasMl && (
+            <span className="text-[8px] uppercase tracking-wider text-[var(--color-accent)]">
+              ML
+            </span>
+          )}
+        </div>
       </div>
-      <div className="flex justify-between mt-1.5 text-xs text-[var(--color-text-secondary)]">
+      <div className="flex justify-between mt-1.5 text-[10px] text-[var(--color-text-muted)] mono tabular">
         <span>
           {c.miss_distance_km !== null
             ? `${c.miss_distance_km.toFixed(3)} km`
@@ -58,8 +78,8 @@ export default function ConjunctionCard({ conjunction: c, selected, onClick }: P
         <span>{timeUntil(c.tca)}</span>
       </div>
       <div
-        className="mt-1.5 h-0.5 rounded-full"
-        style={{ backgroundColor: color, opacity: 0.6 }}
+        className="mt-2 h-[2px] rounded-full"
+        style={{ backgroundColor: color, opacity: 0.7 }}
       />
     </div>
   );

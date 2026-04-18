@@ -1,25 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg-primary: #0a0e1a;
-  --color-bg-secondary: #111827;
-  --color-bg-card: #1a2332;
-  --color-border: #2d3748;
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
+  --color-bg-primary: #05080f;
+  --color-bg-secondary: #0a101c;
+  --color-bg-card: #121a2b;
+  --color-bg-elevated: #1a2540;
+  --color-border: #1e2a44;
+  --color-border-strong: #2d3e5f;
+  --color-text-primary: #e8eef7;
+  --color-text-secondary: #8ba0bd;
+  --color-text-muted: #5a6b86;
   --color-risk-low: #22c55e;
-  --color-risk-medium: #eab308;
+  --color-risk-medium: #f59e0b;
   --color-risk-high: #ef4444;
-  --color-accent: #3b82f6;
+  --color-accent: #22d3ee;
+  --color-accent-dim: #0891b2;
+  --color-regime-leo: #22d3ee;
+  --color-regime-meo: #fb923c;
+  --color-regime-geo: #c084fc;
 }
 
 body {
   margin: 0;
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", "Geist", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
 }
 
 html, body, #root {
   height: 100%;
 }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-accent-dim); }
+
+/* Cesium credit override */
+.cesium-credit-logoContainer, .cesium-widget-credits { display: none !important; }
+.cesium-viewer-bottom { display: none !important; }
+
+/* Utility: monospace numbers */
+.tabular { font-variant-numeric: tabular-nums; }
+.mono { font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace; }
+
+/* Glow accents */
+.glow-cyan { box-shadow: 0 0 20px rgba(34, 211, 238, 0.15); }
+.border-glow { box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.3); }
