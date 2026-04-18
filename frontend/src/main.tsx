@@ -1,12 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Ion } from "cesium";
 import App from "./App.tsx";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./index.css";
 
-Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN;
+// Ion token intentionally not set — we use OpenStreetMap tiles, no Ion needed.
 
 const queryClient = new QueryClient({
   defaultOptions: {

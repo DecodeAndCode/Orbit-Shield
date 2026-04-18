@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { Viewer, Entity, PolylineGraphics } from "resium";
-import { Cartesian3, Color } from "cesium";
+import {
+  Cartesian3,
+  Color,
+  UrlTemplateImageryProvider,
+  ImageryLayer,
+} from "cesium";
 import { usePropagate, useConjunctions } from "../api/client";
 import { useColliderStore } from "../stores/colliderStore";
 
@@ -28,6 +33,21 @@ export default function GlobeView() {
   const { data: propagation } = usePropagate(noradIds, 2, 1);
   const selectedConj = conjunctions?.find((c) => c.id === selectedId);
 
+  const baseLayer = useMemo(
+    () =>
+      ImageryLayer.fromProviderAsync(
+        Promise.resolve(
+          new UrlTemplateImageryProvider({
+            url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            credit: "© OpenStreetMap contributors",
+            maximumLevel: 18,
+          })
+        ),
+        {}
+      ),
+    []
+  );
+
   return (
     <Viewer
       full
@@ -40,6 +60,7 @@ export default function GlobeView() {
       geocoder={false}
       selectionIndicator={false}
       infoBox={false}
+      baseLayer={baseLayer}
       style={{ height: "100%", width: "100%" }}
     >
       {propagation?.map((sat) => {
