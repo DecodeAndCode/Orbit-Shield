@@ -294,12 +294,33 @@ def run_conjunction_screening(self):
             inserted += 1
 
         session.commit()
+
+        # 7. Evaluate alerts on freshly upserted conjunctions
+        alerts_fired = 0
+        try:
+            from src.alerts.evaluator import evaluate as evaluate_alerts
+            from src.db.models import Conjunction as _Conj
+            from sqlalchemy import select as _select
+
+            # Re-fetch persisted rows for evaluator
+            tcas = [e.tca for e in events]
+            if tcas:
+                rows = session.execute(
+                    _select(_Conj).where(_Conj.tca.in_(tcas))
+                ).scalars().all()
+                alerts_fired = evaluate_alerts(session, rows)
+                if alerts_fired:
+                    logger.info("alerts dispatched: %d", alerts_fired)
+        except Exception:
+            logger.exception("alert evaluation failed")
+
         logger.info(
-            "Screening complete: %d conjunctions detected, %d upserted, %d with Pc, %d with ML",
+            "Screening complete: %d conjunctions detected, %d upserted, %d with Pc, %d with ML, %d alerts",
             len(events),
             inserted,
             pc_computed,
             pc_ml_computed,
+            alerts_fired,
         )
 
         return {
@@ -308,6 +329,7 @@ def run_conjunction_screening(self):
             "conjunctions_detected": len(events),
             "pc_computed": pc_computed,
             "pc_ml_computed": pc_ml_computed,
+            "alerts_fired": alerts_fired,
         }
 
     except Exception as exc:
