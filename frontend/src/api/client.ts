@@ -4,6 +4,7 @@ import type {
   ConjunctionDetailResponse,
   SatelliteResponse,
   PropagateResponse,
+  CatalogPositionsResponse,
   MLCompareResponse,
   AlertConfigResponse,
 } from "./types";
@@ -67,6 +68,15 @@ export function usePropagate(noradIds: number[], durationHours = 2, stepMinutes 
         }),
       }),
     enabled: noradIds.length > 0,
+  });
+}
+
+export function useCatalogPositions() {
+  return useQuery({
+    queryKey: ["catalog-positions"],
+    queryFn: () => fetchJSON<CatalogPositionsResponse>("/api/positions"),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 }
 

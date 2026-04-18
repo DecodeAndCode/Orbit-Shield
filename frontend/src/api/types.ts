@@ -53,6 +53,19 @@ export interface PropagateResponse {
   positions: SatellitePosition[];
 }
 
+export interface CatalogPosition {
+  norad_id: number;
+  lat_deg: number;
+  lon_deg: number;
+  alt_km: number;
+}
+
+export interface CatalogPositionsResponse {
+  epoch: string;
+  count: number;
+  positions: CatalogPosition[];
+}
+
 export interface MLCompareResponse {
   conjunction_id: number;
   pc_classical: number | null;

@@ -72,6 +72,19 @@ class PropagateResponse(BaseModel):
     positions: list[SatellitePosition]
 
 
+class CatalogPosition(BaseModel):
+    norad_id: int
+    lat_deg: float
+    lon_deg: float
+    alt_km: float
+
+
+class CatalogPositionsResponse(BaseModel):
+    epoch: datetime
+    count: int
+    positions: list[CatalogPosition]
+
+
 class MLCompareResponse(BaseModel):
     conjunction_id: int
     pc_classical: float | None
