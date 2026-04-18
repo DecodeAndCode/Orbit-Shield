@@ -52,9 +52,8 @@ async def propagate(
     Returns:
         List of PropagateResponse, one per requested satellite that has valid TLEs.
     """
-    # load_catalog uses sync SQLAlchemy Session
-    sync_session = session.sync_session
-    catalog = load_catalog(sync_session)
+    # load_catalog uses sync SQLAlchemy Session — bridge via run_sync
+    catalog = await session.run_sync(lambda s: load_catalog(s))
 
     if not catalog:
         return []
