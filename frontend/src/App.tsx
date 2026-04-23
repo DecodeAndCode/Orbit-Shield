@@ -7,14 +7,14 @@ import FilterPanel from "./components/FilterPanel";
 import HoverTooltip from "./components/HoverTooltip";
 import SatDetailCard from "./components/SatDetailCard";
 import ResetViewButton from "./components/ResetViewButton";
-import { useColliderStore } from "./stores/colliderStore";
+import { useOrbitShieldStore } from "./stores/orbitShieldStore";
 
 export default function App() {
-  const filterDrawerOpen = useColliderStore((s) => s.filterDrawerOpen);
-  const setFilterDrawerOpen = useColliderStore((s) => s.setFilterDrawerOpen);
-  const detailCollapsed = useColliderStore((s) => s.detailCollapsed);
-  const toggleDetail = useColliderStore((s) => s.toggleDetail);
-  const selectedId = useColliderStore((s) => s.selectedConjunctionId);
+  const filterDrawerOpen = useOrbitShieldStore((s) => s.filterDrawerOpen);
+  const setFilterDrawerOpen = useOrbitShieldStore((s) => s.setFilterDrawerOpen);
+  const detailCollapsed = useOrbitShieldStore((s) => s.detailCollapsed);
+  const toggleDetail = useOrbitShieldStore((s) => s.toggleDetail);
+  const selectedId = useOrbitShieldStore((s) => s.selectedConjunctionId);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[var(--color-bg-primary)]">

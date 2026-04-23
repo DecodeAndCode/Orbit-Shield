@@ -27,7 +27,7 @@ export interface HoverInfo {
   screenY: number;
 }
 
-interface ColliderStore extends FilterState {
+interface OrbitShieldStore extends FilterState {
   selectedConjunctionId: number | null;
   selectConjunction: (id: number | null) => void;
 
@@ -65,7 +65,7 @@ const DEFAULT_REGIMES: Regime[] = ["LEO", "MEO", "GEO", "HEO"];
 const DEFAULT_TYPES: ObjectType[] = ["PAYLOAD", "DEBRIS", "ROCKET BODY", "UNKNOWN"];
 const DEFAULT_RISKS: RiskLevel[] = ["high", "medium", "low"];
 
-export const useColliderStore = create<ColliderStore>((set) => ({
+export const useOrbitShieldStore = create<OrbitShieldStore>((set) => ({
   selectedConjunctionId: null,
   selectConjunction: (id) => set({ selectedConjunctionId: id }),
 

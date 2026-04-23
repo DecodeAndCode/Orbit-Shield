@@ -1,9 +1,9 @@
 import {
-  useColliderStore,
+  useOrbitShieldStore,
   type Regime,
   type ObjectType,
   type RiskLevel,
-} from "../stores/colliderStore";
+} from "../stores/orbitShieldStore";
 
 const REGIMES: { key: Regime; label: string; desc: string; color: string }[] = [
   { key: "LEO", label: "LEO", desc: "< 2,000 km", color: "var(--color-regime-leo)" },
@@ -94,7 +94,7 @@ function Toggle({
 }
 
 export default function FilterPanel() {
-  const s = useColliderStore();
+  const s = useOrbitShieldStore();
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)]">

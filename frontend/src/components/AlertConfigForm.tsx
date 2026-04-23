@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useAlerts, useCreateAlert, useDeleteAlert } from "../api/client";
-import { useColliderStore } from "../stores/colliderStore";
+import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 
 export default function AlertConfigForm() {
-  const open = useColliderStore((s) => s.alertModalOpen);
-  const setOpen = useColliderStore((s) => s.setAlertModalOpen);
+  const open = useOrbitShieldStore((s) => s.alertModalOpen);
+  const setOpen = useOrbitShieldStore((s) => s.setAlertModalOpen);
   const { data: alerts, isLoading } = useAlerts();
   const createAlert = useCreateAlert();
   const deleteAlert = useDeleteAlert();

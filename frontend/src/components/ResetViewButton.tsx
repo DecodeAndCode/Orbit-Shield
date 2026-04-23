@@ -1,10 +1,10 @@
-import { useColliderStore } from "../stores/colliderStore";
+import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 
 export default function ResetViewButton() {
-  const focusNoradId = useColliderStore((s) => s.focusNoradId);
-  const clickedSatId = useColliderStore((s) => s.clickedSatId);
-  const focusOnSat = useColliderStore((s) => s.focusOnSat);
-  const setClickedSat = useColliderStore((s) => s.setClickedSat);
+  const focusNoradId = useOrbitShieldStore((s) => s.focusNoradId);
+  const clickedSatId = useOrbitShieldStore((s) => s.clickedSatId);
+  const focusOnSat = useOrbitShieldStore((s) => s.focusOnSat);
+  const setClickedSat = useOrbitShieldStore((s) => s.setClickedSat);
 
   const hasSelection = focusNoradId !== null || clickedSatId !== null;
   if (!hasSelection) return null;

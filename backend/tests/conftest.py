@@ -1,4 +1,4 @@
-"""Shared test fixtures for Collider backend tests."""
+"""Shared test fixtures for Orbit-Shield backend tests."""
 
 import pytest_asyncio
 from sqlalchemy import BigInteger, Integer, event

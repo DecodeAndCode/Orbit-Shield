@@ -1,4 +1,4 @@
-"""FastAPI application entry point for Collider."""
+"""FastAPI application entry point for Orbit-Shield."""
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Collider",
+    title="Orbit-Shield",
     description="ML-enhanced satellite collision avoidance system",
     version="0.1.0",
     lifespan=lifespan,
@@ -38,14 +38,14 @@ app.websocket("/ws/conjunctions")(conjunction_websocket)
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "collider"}
+    return {"status": "ok", "service": "orbit-shield"}
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
     """Root — landing info. Humans should go to /docs or the frontend."""
     return {
-        "service": "collider",
+        "service": "orbit-shield",
         "status": "ok",
         "docs": "/docs",
         "frontend": "http://localhost:5173",

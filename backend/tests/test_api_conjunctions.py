@@ -25,7 +25,7 @@ async def seed_conjunctions(db_session):
         relative_velocity_kms=7.2,
         pc_classical=2.5e-5,
         pc_ml=3.1e-5,
-        screening_source="collider",
+        screening_source="orbit-shield",
     )
     db_session.add(conj)
     await db_session.flush()

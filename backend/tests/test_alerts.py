@@ -73,7 +73,7 @@ def test_matches_watched_filter():
 
 def test_format_message():
     msg = _format(_conj(pc=2.5e-4), AlertConfig(pc_threshold=1e-4))
-    assert "COLLIDER ALERT" in msg
+    assert "ORBIT-SHIELD ALERT" in msg
     assert "2.50e-04" in msg
     assert "25544" in msg
 

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useSatellites } from "../api/client";
-import { useColliderStore } from "../stores/colliderStore";
+import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 import StatsBar from "./StatsBar";
 
 export default function Header() {
   const [search, setSearch] = useState("");
   const { data } = useSatellites(search || undefined);
-  const setAlertModalOpen = useColliderStore((s) => s.setAlertModalOpen);
-  const setFilterDrawerOpen = useColliderStore((s) => s.setFilterDrawerOpen);
-  const focusOnSat = useColliderStore((s) => s.focusOnSat);
+  const setAlertModalOpen = useOrbitShieldStore((s) => s.setAlertModalOpen);
+  const setFilterDrawerOpen = useOrbitShieldStore((s) => s.setFilterDrawerOpen);
+  const focusOnSat = useOrbitShieldStore((s) => s.focusOnSat);
 
   return (
     <header className="flex items-center justify-between px-3 md:px-4 h-12 bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)] gap-3">
@@ -27,7 +27,7 @@ export default function Header() {
         </button>
         <div className="flex items-baseline gap-2">
           <span className="text-base font-bold tracking-[0.15em] text-[var(--color-accent)]">
-            COLLIDER
+            ORBIT-SHIELD
           </span>
           <span className="hidden md:inline text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
             Space Situational Awareness

@@ -11,7 +11,7 @@ import logging
 import numpy as np
 from xgboost import XGBClassifier
 
-from src.ml.models.base import ColliderModel, PredictionResult
+from src.ml.models.base import OrbitShieldModel, PredictionResult
 from src.ml.features.conjunction import CONJUNCTION_FEATURE_NAMES
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ MODEL_NAME = "conjunction_risk_classifier"
 MODEL_VERSION = "1.0.0"
 
 
-class ConjunctionRiskClassifier(ColliderModel):
+class ConjunctionRiskClassifier(OrbitShieldModel):
     """XGBoost classifier predicting P(Pc > maneuver threshold)."""
 
     def __init__(self, scale_pos_weight: float = 100.0) -> None:

@@ -12,7 +12,7 @@ import logging
 import numpy as np
 from xgboost import XGBRegressor
 
-from src.ml.models.base import ColliderModel, PredictionResult
+from src.ml.models.base import OrbitShieldModel, PredictionResult
 from src.ml.features.orbital import ORBITAL_FEATURE_NAMES
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ MODEL_NAME = "covariance_estimator"
 MODEL_VERSION = "1.0.0"
 
 
-class CovarianceEstimator(ColliderModel):
+class CovarianceEstimator(OrbitShieldModel):
     """XGBoost regressor predicting log10(position uncertainty in km)."""
 
     def __init__(self) -> None:

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useColliderStore } from "../stores/colliderStore";
+import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 import type { SatelliteResponse } from "../api/types";
 
 // Simple in-memory cache for per-norad_id satellite metadata fetches.
@@ -23,7 +23,7 @@ async function fetchSatMeta(
 }
 
 export default function HoverTooltip() {
-  const hover = useColliderStore((s) => s.hoveredSat);
+  const hover = useOrbitShieldStore((s) => s.hoveredSat);
   const [meta, setMeta] = useState<SatelliteResponse | null>(null);
 
   useEffect(() => {

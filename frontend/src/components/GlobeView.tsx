@@ -31,10 +31,10 @@ import {
   useCatalogPositions,
 } from "../api/client";
 import {
-  useColliderStore,
+  useOrbitShieldStore,
   altKmToRegime,
   pcToRiskLevel,
-} from "../stores/colliderStore";
+} from "../stores/orbitShieldStore";
 
 function riskCesiumColor(pc: number | null): Color {
   if (pc === null) return Color.GRAY;
@@ -53,14 +53,14 @@ function regimeColor(altKm: number): Color {
 export default function GlobeView() {
   const { data: conjunctions } = useConjunctions();
   const { data: catalog } = useCatalogPositions();
-  const selectedId = useColliderStore((s) => s.selectedConjunctionId);
-  const regimes = useColliderStore((s) => s.regimes);
-  const activeRisks = useColliderStore((s) => s.riskLevels);
-  const showPointCloud = useColliderStore((s) => s.showPointCloud);
-  const showOrbits = useColliderStore((s) => s.showOrbits);
-  const setHoveredSat = useColliderStore((s) => s.setHoveredSat);
-  const focusNoradId = useColliderStore((s) => s.focusNoradId);
-  const focusOnSat = useColliderStore((s) => s.focusOnSat);
+  const selectedId = useOrbitShieldStore((s) => s.selectedConjunctionId);
+  const regimes = useOrbitShieldStore((s) => s.regimes);
+  const activeRisks = useOrbitShieldStore((s) => s.riskLevels);
+  const showPointCloud = useOrbitShieldStore((s) => s.showPointCloud);
+  const showOrbits = useOrbitShieldStore((s) => s.showOrbits);
+  const setHoveredSat = useOrbitShieldStore((s) => s.setHoveredSat);
+  const focusNoradId = useOrbitShieldStore((s) => s.focusNoradId);
+  const focusOnSat = useOrbitShieldStore((s) => s.focusOnSat);
   const viewerRef = useRef<CesiumComponentRef<CesiumViewer> | null>(null);
   const pointsRef = useRef<PointPrimitiveCollection | null>(null);
   const catalogIndex = useRef<Map<number, { lat: number; lon: number; alt: number }>>(

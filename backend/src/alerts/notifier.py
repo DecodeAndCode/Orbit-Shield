@@ -21,7 +21,7 @@ def _format(c: Conjunction, cfg: AlertConfig) -> str:
     pc_str = f"{pc:.2e}" if pc is not None else "N/A"
     md = f"{c.miss_distance_km:.3f} km" if c.miss_distance_km is not None else "N/A"
     return (
-        f"COLLIDER ALERT — Pc={pc_str} (>= {cfg.pc_threshold:.0e})\n"
+        f"ORBIT-SHIELD ALERT — Pc={pc_str} (>= {cfg.pc_threshold:.0e})\n"
         f"  {c.primary_norad_id} vs {c.secondary_norad_id}\n"
         f"  TCA: {c.tca.isoformat()}\n"
         f"  Miss: {md}"
@@ -41,7 +41,7 @@ def _email(target: str, c: Conjunction, cfg: AlertConfig) -> None:
     msg = EmailMessage()
     msg["From"] = settings.smtp_from
     msg["To"] = target
-    msg["Subject"] = f"[Collider] Conjunction Alert — Pc={pc_str}"
+    msg["Subject"] = f"[Orbit-Shield] Conjunction Alert — Pc={pc_str}"
     msg.set_content(msg_body)
 
     try:

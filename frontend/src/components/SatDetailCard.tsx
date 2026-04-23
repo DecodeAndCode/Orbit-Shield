@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useColliderStore, altKmToRegime } from "../stores/colliderStore";
+import { useOrbitShieldStore, altKmToRegime } from "../stores/orbitShieldStore";
 import type { SatelliteResponse } from "../api/types";
 
 const metaCache = new Map<number, SatelliteResponse | null>();
@@ -29,8 +29,8 @@ const regimeColors: Record<string, string> = {
 };
 
 export default function SatDetailCard() {
-  const clickedSatId = useColliderStore((s) => s.clickedSatId);
-  const setClickedSat = useColliderStore((s) => s.setClickedSat);
+  const clickedSatId = useOrbitShieldStore((s) => s.clickedSatId);
+  const setClickedSat = useOrbitShieldStore((s) => s.setClickedSat);
   const [meta, setMeta] = useState<SatelliteResponse | null>(null);
   const [loading, setLoading] = useState(false);
 

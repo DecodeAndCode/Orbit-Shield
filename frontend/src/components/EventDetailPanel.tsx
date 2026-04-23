@@ -1,4 +1,4 @@
-import { useColliderStore } from "../stores/colliderStore";
+import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 import { useConjunctionDetail, useMLCompare } from "../api/client";
 import PcComparisonChart from "./PcComparisonChart";
 
@@ -27,7 +27,7 @@ function riskBadge(label: string) {
 }
 
 export default function EventDetailPanel() {
-  const selectedId = useColliderStore((s) => s.selectedConjunctionId);
+  const selectedId = useOrbitShieldStore((s) => s.selectedConjunctionId);
   const { data: detail, isLoading } = useConjunctionDetail(selectedId);
   const { data: mlData } = useMLCompare(selectedId);
 

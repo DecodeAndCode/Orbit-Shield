@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { useConjunctions } from "../api/client";
-import { useColliderStore, pcToRiskLevel } from "../stores/colliderStore";
+import { useOrbitShieldStore, pcToRiskLevel } from "../stores/orbitShieldStore";
 import ConjunctionCard from "./ConjunctionCard";
 
 export default function ConjunctionTimeline() {
-  const hoursAhead = useColliderStore((s) => s.hoursAhead);
-  const minPc = useColliderStore((s) => s.minPc);
-  const activeRisks = useColliderStore((s) => s.riskLevels);
-  const selectedId = useColliderStore((s) => s.selectedConjunctionId);
-  const select = useColliderStore((s) => s.selectConjunction);
+  const hoursAhead = useOrbitShieldStore((s) => s.hoursAhead);
+  const minPc = useOrbitShieldStore((s) => s.minPc);
+  const activeRisks = useOrbitShieldStore((s) => s.riskLevels);
+  const selectedId = useOrbitShieldStore((s) => s.selectedConjunctionId);
+  const select = useOrbitShieldStore((s) => s.selectConjunction);
 
   const { data, isLoading, error } = useConjunctions(
     minPc ?? undefined,

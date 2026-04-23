@@ -19,8 +19,8 @@ class PredictionResult:
     model_version: str
 
 
-class ColliderModel(ABC):
-    """Abstract base class for all Collider ML models."""
+class OrbitShieldModel(ABC):
+    """Abstract base class for all Orbit-Shield ML models."""
 
     @property
     @abstractmethod

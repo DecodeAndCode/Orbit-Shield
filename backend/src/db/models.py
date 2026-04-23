@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for the Collider database.
+"""SQLAlchemy ORM models for the Orbit-Shield database.
 
 Tables:
     satellites       -- Satellite catalog (NORAD objects)
