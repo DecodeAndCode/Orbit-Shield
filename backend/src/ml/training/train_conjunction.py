@@ -22,43 +22,41 @@ from src.ml.config import ml_settings
 from src.ml.features.conjunction import CONJUNCTION_FEATURE_NAMES
 from src.ml.models.conjunction_risk import ConjunctionRiskClassifier
 from src.ml.registry import ModelRegistry
+from src.ml.training.from_cdms import build_training_set
 from src.ml.training.synthetic import generate_synthetic_conjunctions
 
 logger = logging.getLogger(__name__)
 
-MIN_CONJUNCTIONS_FOR_DB_TRAINING = 100
+MIN_CDMS_FOR_DB_TRAINING = 100
 
 
 def generate_training_data_from_db(
     session: Session,
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Generate training data from real conjunction events in the database.
+    """Build (X, y) from real CDM history in the database.
 
-    Args:
-        session: Synchronous SQLAlchemy session.
-
-    Returns:
-        (X, y) tuple or None if insufficient data.
+    Returns None when fewer than MIN_CDMS_FOR_DB_TRAINING usable rows exist;
+    caller then falls back to synthetic data.
     """
-    from src.db.models import Conjunction
+    from src.db.models import CDMHistory
 
-    stmt = select(Conjunction).where(Conjunction.pc_classical.is_not(None))
-    rows = session.execute(stmt).scalars().all()
+    total = session.execute(
+        select(CDMHistory).where(CDMHistory.pc.is_not(None))
+    ).scalars().all()
 
-    if len(rows) < MIN_CONJUNCTIONS_FOR_DB_TRAINING:
+    if len(total) < MIN_CDMS_FOR_DB_TRAINING:
         logger.info(
-            "Only %d conjunctions with Pc in DB (need %d), insufficient",
-            len(rows),
-            MIN_CONJUNCTIONS_FOR_DB_TRAINING,
+            "Only %d labeled CDMs in DB (need %d), falling back to synthetic",
+            len(total),
+            MIN_CDMS_FOR_DB_TRAINING,
         )
         return None
 
-    # Build features from DB rows — this would require joining with
-    # orbital elements and computing encounter features.
-    # For now, return None to fall back to synthetic data.
-    # Full DB training will be implemented when real conjunction data exists.
-    logger.info("DB training for conjunction model not yet implemented, using synthetic")
-    return None
+    try:
+        return build_training_set(session)
+    except RuntimeError as exc:
+        logger.warning("CDM training set build failed: %s", exc)
+        return None
 
 
 def train_conjunction_model(
