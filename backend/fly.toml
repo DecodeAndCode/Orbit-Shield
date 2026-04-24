@@ -1,0 +1,35 @@
+# Fly.io config — Orbit-Shield API
+# Deploy: cd backend && flyctl launch --no-deploy && flyctl secrets set ... && flyctl deploy
+app = "orbit-shield-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[processes]
+  app = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
+  worker = "celery -A src.ingestion.tasks worker --loglevel=info"
+  beat = "celery -A src.ingestion.tasks beat --loglevel=info"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
