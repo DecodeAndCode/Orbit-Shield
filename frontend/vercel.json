@@ -5,6 +5,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm ci",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://orbit-shield-api.fly.dev/:path*" }
+    { "source": "/api/:path*", "destination": "https://orbit-shield-api.fly.dev/api/:path*" }
   ]
 }
