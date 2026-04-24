@@ -106,7 +106,7 @@ class SpaceTrackClient:
 
     async def fetch_cdm_public(self, days: int = 7) -> list[dict]:
         """Fetch public CDM records from the last N days."""
-        path = f"/class/cdm_public/CREATION_DATE/>now-{days}/orderby/TCA/format/json"
+        path = f"/class/cdm_public/CREATED/>now-{days}/orderby/TCA/format/json"
         return await self._query(path)
 
     async def fetch_cdms_between(
@@ -122,8 +122,8 @@ class SpaceTrackClient:
         s = start.strftime("%Y-%m-%d%%20%H:%M:%S")
         e = end.strftime("%Y-%m-%d%%20%H:%M:%S")
         path = (
-            f"/class/cdm_public/CREATION_DATE/{s}--{e}"
-            f"/orderby/CREATION_DATE/format/json"
+            f"/class/cdm_public/CREATED/{s}--{e}"
+            f"/orderby/CREATED/format/json"
         )
         if limit:
             path += f"/limit/{limit}"
