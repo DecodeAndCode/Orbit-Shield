@@ -6,10 +6,10 @@ import {
 } from "../stores/orbitShieldStore";
 
 const REGIMES: { key: Regime; label: string; desc: string; color: string }[] = [
-  { key: "LEO", label: "LEO", desc: "< 2,000 km", color: "var(--color-regime-leo)" },
-  { key: "MEO", label: "MEO", desc: "2,000–35,000 km", color: "var(--color-regime-meo)" },
-  { key: "GEO", label: "GEO", desc: "~35,786 km", color: "var(--color-regime-geo)" },
-  { key: "HEO", label: "HEO", desc: "> 36,500 km", color: "#f472b6" },
+  { key: "LEO", label: "LEO", desc: "< 2,000 km", color: "var(--os-regime-leo)" },
+  { key: "MEO", label: "MEO", desc: "2k–35k km", color: "var(--os-regime-meo)" },
+  { key: "GEO", label: "GEO", desc: "~35,786 km", color: "var(--os-regime-geo)" },
+  { key: "HEO", label: "HEO", desc: "> 36,500 km", color: "var(--os-regime-heo)" },
 ];
 
 const TYPES: { key: ObjectType; label: string }[] = [
@@ -20,9 +20,9 @@ const TYPES: { key: ObjectType; label: string }[] = [
 ];
 
 const RISKS: { key: RiskLevel; label: string; pc: string; color: string }[] = [
-  { key: "high", label: "High", pc: "≥ 1e-4", color: "var(--color-risk-high)" },
-  { key: "medium", label: "Medium", pc: "≥ 1e-6", color: "var(--color-risk-medium)" },
-  { key: "low", label: "Low", pc: "< 1e-6", color: "var(--color-risk-low)" },
+  { key: "high", label: "High", pc: "≥ 1e-4", color: "var(--os-risk-high)" },
+  { key: "medium", label: "Medium", pc: "≥ 1e-6", color: "var(--os-risk-medium)" },
+  { key: "low", label: "Low", pc: "< 1e-6", color: "var(--os-risk-low)" },
 ];
 
 function Section({
@@ -33,11 +33,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-5">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-muted)] mb-2 px-1">
-        {title}
-      </h3>
-      <div className="space-y-1">{children}</div>
+    <div className="os-section">
+      <h3>{title}</h3>
+      <div>{children}</div>
     </div>
   );
 }
@@ -56,36 +54,21 @@ function Toggle({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-colors text-left ${
-        active
-          ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]"
-          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card)]"
-      }`}
+      className={`os-toggle ${active ? "is-active" : ""}`}
     >
-      <div className="flex items-center gap-2">
+      <span className="os-toggle-left">
         {dot && (
           <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: dot, opacity: active ? 1 : 0.3 }}
+            className="os-toggle-dot"
+            style={{ background: dot, opacity: active ? 1 : 0.3 }}
           />
         )}
         {children}
-      </div>
-      <span
-        className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
-          active
-            ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
-            : "border-[var(--color-border-strong)]"
-        }`}
-      >
+      </span>
+      <span className={`os-check ${active ? "is-active" : ""}`}>
         {active && (
           <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-            <path
-              d="M1 5L4 8L9 2"
-              stroke="#000"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+            <path d="M1 5L4 8L9 2" stroke="#000" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         )}
       </span>
@@ -97,20 +80,17 @@ export default function FilterPanel() {
   const s = useOrbitShieldStore();
 
   return (
-    <div className="h-full flex flex-col bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-text-primary)]">
-          Filters
-        </h2>
-        <button
-          onClick={s.resetFilters}
-          className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] uppercase tracking-wider"
-        >
+    <>
+      <div className="os-panel-head">
+        <div>
+          <h2>Filters</h2>
+        </div>
+        <button className="os-link-btn" onClick={s.resetFilters}>
           Reset
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="os-filter-body">
         <Section title="Orbit Regime">
           {REGIMES.map((r) => (
             <Toggle
@@ -119,10 +99,8 @@ export default function FilterPanel() {
               onClick={() => s.toggleRegime(r.key)}
               dot={r.color}
             >
-              <span className="font-medium">{r.label}</span>
-              <span className="ml-2 text-[10px] text-[var(--color-text-muted)]">
-                {r.desc}
-              </span>
+              <span className="os-toggle-name">{r.label}</span>
+              <span className="os-toggle-desc">{r.desc}</span>
             </Toggle>
           ))}
         </Section>
@@ -134,7 +112,7 @@ export default function FilterPanel() {
               active={s.objectTypes.has(t.key)}
               onClick={() => s.toggleObjectType(t.key)}
             >
-              {t.label}
+              <span className="os-toggle-name">{t.label}</span>
             </Toggle>
           ))}
         </Section>
@@ -147,23 +125,17 @@ export default function FilterPanel() {
               onClick={() => s.toggleRiskLevel(r.key)}
               dot={r.color}
             >
-              <span className="font-medium">{r.label}</span>
-              <span className="ml-2 text-[10px] text-[var(--color-text-muted)] mono">
-                Pc {r.pc}
-              </span>
+              <span className="os-toggle-name">{r.label}</span>
+              <span className="os-toggle-desc mono">Pc {r.pc}</span>
             </Toggle>
           ))}
         </Section>
 
         <Section title="Time Window">
-          <div className="px-1 py-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Hours ahead
-              </span>
-              <span className="text-xs mono text-[var(--color-text-primary)]">
-                {s.hoursAhead}h
-              </span>
+          <div className="os-slider-block">
+            <div className="os-slider-head">
+              <span>Hours ahead</span>
+              <span className="mono">{s.hoursAhead}h</span>
             </div>
             <input
               type="range"
@@ -172,9 +144,8 @@ export default function FilterPanel() {
               step={6}
               value={s.hoursAhead}
               onChange={(e) => s.setHoursAhead(Number(e.target.value))}
-              className="w-full accent-[var(--color-accent)]"
             />
-            <div className="flex justify-between text-[9px] text-[var(--color-text-muted)] mt-1">
+            <div className="os-slider-ticks">
               <span>6h</span>
               <span>72h</span>
               <span>7d</span>
@@ -183,20 +154,18 @@ export default function FilterPanel() {
         </Section>
 
         <Section title="Minimum Pc">
-          <div className="px-1">
-            <select
-              value={s.minPc === null ? "" : String(s.minPc)}
-              onChange={(e) =>
-                s.setMinPc(e.target.value === "" ? null : Number(e.target.value))
-              }
-              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
-            >
-              <option value="">Any</option>
-              <option value={String(1e-8)}>≥ 1e-8</option>
-              <option value={String(1e-6)}>≥ 1e-6 (Medium)</option>
-              <option value={String(1e-4)}>≥ 1e-4 (High)</option>
-            </select>
-          </div>
+          <select
+            className="os-select"
+            value={s.minPc === null ? "" : String(s.minPc)}
+            onChange={(e) =>
+              s.setMinPc(e.target.value === "" ? null : Number(e.target.value))
+            }
+          >
+            <option value="">Any</option>
+            <option value={String(1e-8)}>≥ 1e-8</option>
+            <option value={String(1e-6)}>≥ 1e-6 (Medium)</option>
+            <option value={String(1e-4)}>≥ 1e-4 (High)</option>
+          </select>
         </Section>
 
         <Section title="Layers">
@@ -204,16 +173,16 @@ export default function FilterPanel() {
             active={s.showPointCloud}
             onClick={() => s.setShowPointCloud(!s.showPointCloud)}
           >
-            Catalog point cloud
+            <span className="os-toggle-name">Catalog point cloud</span>
           </Toggle>
           <Toggle
             active={s.showOrbits}
             onClick={() => s.setShowOrbits(!s.showOrbits)}
           >
-            Conjunction orbits
+            <span className="os-toggle-name">Conjunction orbits</span>
           </Toggle>
         </Section>
       </div>
-    </div>
+    </>
   );
 }

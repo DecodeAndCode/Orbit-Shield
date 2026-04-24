@@ -24,29 +24,23 @@ export default function ConjunctionTimeline() {
   }, [data, activeRisks]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+    <>
+      <div className="os-panel-head os-timeline-head">
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-text-primary)]">
-            Conjunctions
-          </h2>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-            Sorted by Pc · next {hoursAhead}h
-          </p>
+          <h2>Conjunctions</h2>
+          <p>Sorted by Pc · next {hoursAhead}h</p>
         </div>
-        <div className="px-2 py-0.5 rounded bg-[var(--color-bg-card)] text-[10px] mono tabular text-[var(--color-text-secondary)]">
+        <span className="os-counter">
           {filtered.length}/{data?.length ?? 0}
-        </div>
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="os-timeline-body">
         {isLoading && (
-          <div className="p-4 text-xs text-[var(--color-text-muted)]">
-            Loading conjunctions…
-          </div>
+          <div className="os-detail-empty">Loading conjunctions…</div>
         )}
         {error && (
-          <div className="p-4 text-xs text-[var(--color-risk-high)]">
+          <div className="os-detail-empty" style={{ color: "var(--os-risk-high)" }}>
             Failed to load conjunctions
           </div>
         )}
@@ -58,12 +52,12 @@ export default function ConjunctionTimeline() {
             onClick={() => select(c.id)}
           />
         ))}
-        {!isLoading && filtered.length === 0 && (
-          <div className="p-6 text-xs text-[var(--color-text-muted)] text-center">
+        {!isLoading && filtered.length === 0 && !error && (
+          <div className="os-detail-empty">
             No events match current filters
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

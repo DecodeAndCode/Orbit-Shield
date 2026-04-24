@@ -22,10 +22,10 @@ async function fetchMeta(
 }
 
 const regimeColors: Record<string, string> = {
-  LEO: "#22d3ee",
-  MEO: "#fb923c",
-  GEO: "#c084fc",
-  HEO: "#f472b6",
+  LEO: "var(--os-regime-leo)",
+  MEO: "var(--os-regime-meo)",
+  GEO: "var(--os-regime-geo)",
+  HEO: "var(--os-regime-heo)",
 };
 
 export default function SatDetailCard() {
@@ -61,45 +61,31 @@ export default function SatDetailCard() {
   const regime =
     (meta?.regime as string | null) ??
     (meanAlt !== null ? altKmToRegime(meanAlt) : "LEO");
-  const regimeColor = regimeColors[regime] ?? "#22d3ee";
+  const regimeColor = regimeColors[regime] ?? "var(--os-regime-leo)";
 
   const status = meta?.object_type === "DEBRIS" ? "DEBRIS" : "ACTIVE";
   const statusColor =
-    status === "DEBRIS" ? "#ef4444" : "#22c55e";
+    status === "DEBRIS" ? "var(--os-risk-high)" : "var(--os-risk-low)";
 
   return (
-    <div className="absolute top-3 right-3 z-40 w-80 bg-[var(--color-bg-card)]/95 backdrop-blur-md border border-[var(--color-border-strong)] rounded-lg shadow-2xl overflow-hidden">
-      {/* Header bar */}
-      <div
-        className="h-1 w-full"
-        style={{ backgroundColor: regimeColor }}
-      />
-
-      <div className="p-4">
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <div className="text-base font-bold text-[var(--color-text-primary)] truncate">
-              {loading
-                ? "Loading…"
-                : meta?.name || `Object #${clickedSatId}`}
+    <div className="os-satcard">
+      <div className="os-satcard-bar" style={{ background: regimeColor }} />
+      <div className="os-satcard-body">
+        <div className="os-satcard-top">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="os-satcard-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {loading ? "Loading…" : meta?.name || `Object #${clickedSatId}`}
             </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="os-satcard-pills">
               <span
-                className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                style={{
-                  color: statusColor,
-                  backgroundColor: statusColor + "22",
-                }}
+                className="os-pill"
+                style={{ color: statusColor, background: `color-mix(in srgb, ${statusColor} 15%, transparent)` }}
               >
                 {status}
               </span>
               <span
-                className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                style={{
-                  color: regimeColor,
-                  backgroundColor: regimeColor + "22",
-                }}
+                className="os-pill"
+                style={{ color: regimeColor, background: `color-mix(in srgb, ${regimeColor} 15%, transparent)` }}
               >
                 {regime}
               </span>
@@ -107,7 +93,7 @@ export default function SatDetailCard() {
           </div>
           <button
             onClick={() => setClickedSat(null)}
-            className="flex-shrink-0 w-6 h-6 rounded hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors flex items-center justify-center"
+            className="os-icon-btn"
             aria-label="Close"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -117,62 +103,45 @@ export default function SatDetailCard() {
           </button>
         </div>
 
-        {/* NORAD + source */}
-        <div className="mb-3 pb-3 border-b border-[var(--color-border)]">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-            NORAD ID
-          </div>
-          <div className="text-sm mono text-[var(--color-text-primary)]">
-            {clickedSatId}
-          </div>
-          <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mt-2">
-            Source
-          </div>
-          <div className="text-xs mono text-[var(--color-accent)]">
-            SPACE-TRACK
-          </div>
+        <div className="os-satcard-meta">
+          <div className="os-field-label">NORAD ID</div>
+          <div className="mono os-fg1">{clickedSatId}</div>
+          <div className="os-field-label mt">Source</div>
+          <div className="mono os-text-signal">SPACE-TRACK</div>
         </div>
 
-        {/* Details grid */}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
-          <Field label="Type" value={meta?.object_type ?? "—"} mono />
-          <Field label="Country" value={meta?.country ?? "—"} />
-          <Field
-            label="Perigee"
-            value={perigee !== null ? `${perigee.toFixed(1)} km` : "—"}
-            mono
-          />
-          <Field
-            label="Apogee"
-            value={apogee !== null ? `${apogee.toFixed(1)} km` : "—"}
-            mono
-          />
-          <Field
-            label="Inclination"
-            value={
-              meta?.inclination !== null && meta?.inclination !== undefined
-                ? `${meta.inclination.toFixed(2)}°`
-                : "—"
-            }
-            mono
-          />
-          <Field label="RCS" value={meta?.rcs_size ?? "—"} mono />
-          <Field
-            label="Launch"
-            value={
-              meta?.launch_date
-                ? new Date(meta.launch_date).toISOString().slice(0, 10)
-                : "—"
-            }
-            mono
-          />
-          <Field label="Regime" value={regime} mono />
+        <div className="os-satcard-grid">
+          <span>Type</span>
+          <span className="mono">{meta?.object_type ?? "—"}</span>
+          <span>Country</span>
+          <span>{meta?.country ?? "—"}</span>
+          <span>Perigee</span>
+          <span className="mono">
+            {perigee !== null ? `${perigee.toFixed(1)} km` : "—"}
+          </span>
+          <span>Apogee</span>
+          <span className="mono">
+            {apogee !== null ? `${apogee.toFixed(1)} km` : "—"}
+          </span>
+          <span>Inclination</span>
+          <span className="mono">
+            {meta?.inclination !== null && meta?.inclination !== undefined
+              ? `${meta.inclination.toFixed(2)}°`
+              : "—"}
+          </span>
+          <span>RCS</span>
+          <span className="mono">{meta?.rcs_size ?? "—"}</span>
+          <span>Launch</span>
+          <span className="mono">
+            {meta?.launch_date
+              ? new Date(meta.launch_date).toISOString().slice(0, 10)
+              : "—"}
+          </span>
         </div>
 
-        {/* Actions */}
-        <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex items-center gap-2">
+        <div className="os-satcard-actions">
           <button
-            className="flex-1 px-2 py-1.5 text-[10px] uppercase tracking-wider rounded bg-[var(--color-bg-elevated)] border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
+            className="os-chrome-btn"
             onClick={() =>
               window.open(
                 `https://www.space-track.org/#catalog?predicates=NORAD_CAT_ID=${clickedSatId}`,
@@ -183,12 +152,9 @@ export default function SatDetailCard() {
             Space-Track
           </button>
           <button
-            className="flex-1 px-2 py-1.5 text-[10px] uppercase tracking-wider rounded bg-[var(--color-bg-elevated)] border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
+            className="os-chrome-btn"
             onClick={() =>
-              window.open(
-                `https://n2yo.com/satellite/?s=${clickedSatId}`,
-                "_blank"
-              )
+              window.open(`https://n2yo.com/satellite/?s=${clickedSatId}`, "_blank")
             }
           >
             N2YO
@@ -196,28 +162,5 @@ export default function SatDetailCard() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <>
-      <span className="text-[var(--color-text-muted)]">{label}</span>
-      <span
-        className={`text-[var(--color-text-primary)] text-right ${
-          mono ? "mono tabular" : ""
-        } truncate`}
-      >
-        {value}
-      </span>
-    </>
   );
 }

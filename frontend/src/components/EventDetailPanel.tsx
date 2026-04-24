@@ -13,16 +13,24 @@ function formatDate(iso: string): string {
   });
 }
 
-function riskBadge(label: string) {
-  const colors: Record<string, string> = {
-    low: "bg-green-900 text-green-300",
-    medium: "bg-yellow-900 text-yellow-300",
-    high: "bg-red-900 text-red-300",
-  };
+function riskColor(label: string): string {
+  if (label === "high") return "var(--os-risk-high)";
+  if (label === "medium") return "var(--os-risk-medium)";
+  return "var(--os-risk-low)";
+}
+
+function Field({
+  k,
+  v,
+}: {
+  k: string;
+  v: string;
+}) {
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[label] || ""}`}>
-      {label.toUpperCase()}
-    </span>
+    <div>
+      <div className="os-field-label">{k}</div>
+      <div className="os-field-value mono">{v}</div>
+    </div>
   );
 }
 
@@ -33,72 +41,78 @@ export default function EventDetailPanel() {
 
   if (!selectedId) {
     return (
-      <div className="p-4 text-sm text-[var(--color-text-secondary)]">
-        Select a conjunction to view details
-      </div>
+      <div className="os-detail-empty">Select a conjunction to view details</div>
     );
   }
 
   if (isLoading) {
-    return (
-      <div className="p-4 text-sm text-[var(--color-text-secondary)]">Loading...</div>
-    );
+    return <div className="os-detail-empty">Loading…</div>;
   }
 
   if (!detail) return null;
 
+  const rLabel = mlData?.risk_label ?? "low";
+  const rColor = riskColor(rLabel);
+  const pc = detail.pc_ml ?? detail.pc_classical;
+
   return (
-    <div className="p-4 grid grid-cols-2 gap-4">
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <h3 className="text-sm font-semibold">
-            {detail.primary_name || `#${detail.primary_norad_id}`}
-            {" vs "}
+    <div className="os-detail">
+      <div className="os-detail-col">
+        <div className="os-detail-title-row">
+          <h3>
+            {detail.primary_name || `#${detail.primary_norad_id}`} vs{" "}
             {detail.secondary_name || `#${detail.secondary_norad_id}`}
           </h3>
-          {mlData && riskBadge(mlData.risk_label)}
+          <span
+            className="os-risk-badge"
+            style={{ color: rColor, background: `${rColor}22` }}
+          >
+            {rLabel.toUpperCase()}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-[var(--color-text-secondary)]">TCA</span>
-            <div>{formatDate(detail.tca)}</div>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-secondary)]">Miss Distance</span>
-            <div>
-              {detail.miss_distance_km !== null
+        <div className="os-detail-grid">
+          <Field k="TCA" v={formatDate(detail.tca)} />
+          <Field
+            k="Miss Distance"
+            v={
+              detail.miss_distance_km !== null
                 ? `${detail.miss_distance_km.toFixed(3)} km`
-                : "—"}
-            </div>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-secondary)]">Relative Velocity</span>
-            <div>
-              {detail.relative_velocity_kms !== null
+                : "—"
+            }
+          />
+          <Field
+            k="Rel. Velocity"
+            v={
+              detail.relative_velocity_kms !== null
                 ? `${detail.relative_velocity_kms.toFixed(2)} km/s`
-                : "—"}
-            </div>
-          </div>
-          <div>
-            <span className="text-[var(--color-text-secondary)]">Classical Pc</span>
-            <div>
-              {detail.pc_classical !== null
+                : "—"
+            }
+          />
+          <Field
+            k="Classical Pc"
+            v={
+              detail.pc_classical !== null
                 ? detail.pc_classical.toExponential(2)
-                : "—"}
-            </div>
-          </div>
+                : "—"
+            }
+          />
+          <Field
+            k="ML Pc"
+            v={detail.pc_ml !== null ? detail.pc_ml.toExponential(2) : "—"}
+          />
+          <Field k="Effective Pc" v={pc !== null ? pc.toExponential(2) : "—"} />
         </div>
 
         {detail.cdm_history.length > 0 && (
-          <div className="mt-3">
-            <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase mb-1">
-              CDM History ({detail.cdm_history.length})
-            </h4>
-            <div className="max-h-20 overflow-y-auto text-xs space-y-0.5">
+          <div className="os-detail-cdm">
+            <h4>CDM History ({detail.cdm_history.length})</h4>
+            <div style={{ maxHeight: 100, overflowY: "auto" }}>
               {detail.cdm_history.map((cdm) => (
-                <div key={cdm.id} className="flex justify-between">
-                  <span>{cdm.cdm_timestamp ? formatDate(cdm.cdm_timestamp) : "—"}</span>
+                <div key={cdm.id} className="os-cdm-row mono">
+                  <span>
+                    {cdm.cdm_timestamp ? formatDate(cdm.cdm_timestamp) : "—"}
+                  </span>
                   <span>{cdm.pc ? cdm.pc.toExponential(2) : "—"}</span>
                 </div>
               ))}
@@ -107,7 +121,9 @@ export default function EventDetailPanel() {
         )}
       </div>
 
-      <div>{mlData && <PcComparisonChart data={mlData} />}</div>
+      <div className="os-detail-col">
+        {mlData && <PcComparisonChart data={mlData} />}
+      </div>
     </div>
   );
 }

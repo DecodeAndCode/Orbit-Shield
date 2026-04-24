@@ -30,91 +30,75 @@ export default function AlertConfigForm() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onClick={() => setOpen(false)}
-    >
-      <div
-        className="w-[480px] bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center p-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-semibold">Alert Configuration</h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-          >
-            ✕
+    <div className="os-scrim" onClick={() => setOpen(false)}>
+      <div className="os-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="os-modal-head">
+          <h2>Alert Configuration</h2>
+          <button onClick={() => setOpen(false)} className="os-icon-btn" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        <div className="p-4 space-y-3 border-b border-[var(--color-border)]">
-          <div>
-            <label className="block text-xs text-[var(--color-text-secondary)] mb-1">
-              Pc Threshold
-            </label>
+        <div className="os-modal-body">
+          <label className="os-modal-field">
+            <span>Pc Threshold</span>
             <input
               type="text"
+              className="os-input"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
-              className="w-full px-2 py-1 text-sm rounded bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[var(--color-text-primary)]"
             />
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--color-text-secondary)] mb-1">
-              Watch NORAD IDs (comma-separated, optional)
-            </label>
+          </label>
+          <label className="os-modal-field">
+            <span>Watch NORAD IDs (comma-separated, optional)</span>
             <input
               type="text"
+              className="os-input"
+              placeholder="25544, 48274"
               value={noradIds}
               onChange={(e) => setNoradIds(e.target.value)}
-              placeholder="25544, 48274"
-              className="w-full px-2 py-1 text-sm rounded bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[var(--color-text-primary)]"
             />
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--color-text-secondary)] mb-1">
-              Email (optional)
-            </label>
+          </label>
+          <label className="os-modal-field">
+            <span>Email (optional)</span>
             <input
               type="email"
+              className="os-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-2 py-1 text-sm rounded bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[var(--color-text-primary)]"
             />
-          </div>
-          <button
-            onClick={handleCreate}
-            className="w-full py-1.5 text-sm rounded bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity"
-          >
+          </label>
+          <button className="os-primary-btn" onClick={handleCreate}>
             Create Alert
           </button>
         </div>
 
-        <div className="p-4 max-h-48 overflow-y-auto">
-          <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase mb-2">
-            Active Alerts
-          </h3>
-          {isLoading && <div className="text-xs text-[var(--color-text-secondary)]">Loading...</div>}
+        <div className="os-modal-alerts">
+          <h3>Active Alerts</h3>
+          {isLoading && (
+            <div style={{ fontSize: 12, color: "var(--os-fg3)" }}>Loading…</div>
+          )}
           {alerts?.length === 0 && (
-            <div className="text-xs text-[var(--color-text-secondary)]">No alerts configured</div>
+            <div style={{ fontSize: 12, color: "var(--os-fg3)" }}>
+              No alerts configured
+            </div>
           )}
           {alerts?.map((a) => (
-            <div
-              key={a.id}
-              className="flex justify-between items-center py-1.5 border-b border-[var(--color-border)] last:border-0"
-            >
-              <div className="text-xs">
+            <div key={a.id} className="os-alert-row">
+              <div>
                 <span>Pc ≥ {a.pc_threshold.toExponential(1)}</span>
                 {a.watched_norad_ids && (
-                  <span className="ml-2 text-[var(--color-text-secondary)]">
+                  <span className="os-fg2 mono" style={{ marginLeft: 8 }}>
                     [{a.watched_norad_ids.join(", ")}]
                   </span>
                 )}
               </div>
               <button
+                className="os-danger-link"
                 onClick={() => deleteAlert.mutate(a.id)}
-                className="text-xs text-[var(--color-risk-high)] hover:underline"
               >
                 Remove
               </button>

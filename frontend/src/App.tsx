@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Header from "./components/Header";
 import ConjunctionTimeline from "./components/ConjunctionTimeline";
 import GlobeView from "./components/GlobeView";
@@ -15,79 +16,51 @@ export default function App() {
   const detailCollapsed = useOrbitShieldStore((s) => s.detailCollapsed);
   const toggleDetail = useOrbitShieldStore((s) => s.toggleDetail);
   const selectedId = useOrbitShieldStore((s) => s.selectedConjunctionId);
+  const setAlertOpen = useOrbitShieldStore((s) => s.setAlertModalOpen);
+  const setClickedSat = useOrbitShieldStore((s) => s.setClickedSat);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAlertOpen(false);
+        setClickedSat(null);
+        setFilterDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setAlertOpen, setClickedSat, setFilterDrawerOpen]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[var(--color-bg-primary)]">
+    <div className="os-app">
       <Header />
 
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Left filter rail — desktop */}
-        <aside className="hidden lg:flex w-64 xl:w-72 flex-shrink-0">
+      <div className="os-workspace">
+        <div className={`os-filter ${filterDrawerOpen ? "open" : ""}`}>
           <FilterPanel />
-        </aside>
+        </div>
 
-        {/* Mobile filter drawer */}
-        {filterDrawerOpen && (
-          <>
-            <div
-              className="lg:hidden fixed inset-0 bg-black/60 z-40"
-              onClick={() => setFilterDrawerOpen(false)}
-            />
-            <aside className="lg:hidden fixed top-12 left-0 bottom-0 w-72 z-50 shadow-2xl">
-              <FilterPanel />
-            </aside>
-          </>
-        )}
+        <div className="os-stage">
+          <GlobeView />
+          <GlobeLegend />
+          <HoverTooltip />
+          <SatDetailCard />
+          <ResetViewButton />
 
-        {/* Center: globe + bottom detail */}
-        <main className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
-          <div className="flex-1 relative bg-[var(--color-bg-primary)]">
-            <GlobeView />
-            <GlobeLegend />
-            <HoverTooltip />
-            <SatDetailCard />
-            <ResetViewButton />
-          </div>
-
-          {/* Detail panel — collapsible */}
-          <div
-            className={`border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] transition-all duration-200 ${
-              detailCollapsed ? "h-10" : "h-56 md:h-64"
-            }`}
-          >
-            <button
-              onClick={toggleDetail}
-              className="w-full h-10 flex items-center justify-between px-4 text-[10px] uppercase tracking-[0.15em] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] transition-colors"
-            >
-              <span>
-                {selectedId ? `Event Detail #${selectedId}` : "Event Detail"}
-              </span>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className={`transition-transform ${
-                  detailCollapsed ? "rotate-180" : ""
-                }`}
-              >
+          <div className={`os-detail-drawer ${detailCollapsed ? "collapsed" : ""}`}>
+            <div className="os-drawer-handle" onClick={toggleDetail}>
+              <span>{selectedId ? `Event Detail · #${selectedId}` : "Event Detail"}</span>
+              <svg className="os-drawer-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
-            </button>
-            {!detailCollapsed && (
-              <div className="h-[calc(100%-2.5rem)] overflow-y-auto">
-                <EventDetailPanel />
-              </div>
-            )}
+            </div>
+            <EventDetailPanel />
           </div>
-        </main>
+        </div>
 
-        {/* Right rail: conjunctions list */}
-        <aside className="hidden md:flex w-72 xl:w-80 flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex-col overflow-hidden">
+        <div className="os-timeline">
           <ConjunctionTimeline />
-        </aside>
+        </div>
       </div>
 
       <AlertConfigForm />
@@ -97,27 +70,12 @@ export default function App() {
 
 function GlobeLegend() {
   return (
-    <div className="absolute bottom-3 left-3 bg-[var(--color-bg-card)]/80 backdrop-blur-sm border border-[var(--color-border)] rounded px-3 py-2 pointer-events-none">
-      <div className="text-[9px] uppercase tracking-[0.15em] text-[var(--color-text-muted)] mb-1.5">
-        Regime
-      </div>
-      <div className="flex flex-col gap-1 text-[10px]">
-        <LegendItem color="#22d3ee" label="LEO" />
-        <LegendItem color="#fb923c" label="MEO" />
-        <LegendItem color="#c084fc" label="GEO" />
-      </div>
-    </div>
-  );
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-      <span
-        className="w-2 h-2 rounded-full"
-        style={{ backgroundColor: color }}
-      />
-      {label}
+    <div className="os-legend">
+      <div className="os-legend-title">Regime</div>
+      <div className="os-legend-row"><span className="os-dot" style={{background:"var(--os-regime-leo)"}}/>LEO</div>
+      <div className="os-legend-row"><span className="os-dot" style={{background:"var(--os-regime-meo)"}}/>MEO</div>
+      <div className="os-legend-row"><span className="os-dot" style={{background:"var(--os-regime-geo)"}}/>GEO</div>
+      <div className="os-legend-row"><span className="os-dot" style={{background:"var(--os-regime-heo)"}}/>HEO</div>
     </div>
   );
 }
