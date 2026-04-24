@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     @property
     def database_url_sync(self) -> str:
         """Synchronous database URL for Alembic migrations."""
-        return self.database_url.replace("+asyncpg", "")
+        return self.database_url.replace("+asyncpg", "").replace("ssl=require", "sslmode=require")
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
