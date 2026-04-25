@@ -36,3 +36,9 @@ Thumbs.db
 
 # Alembic
 backend/alembic/versions/__pycache__/
+
+# Claude Code / plugins / generated outputs
+.claude/
+.superpowers/
+graphify-out/
+.playwright-mcp/
