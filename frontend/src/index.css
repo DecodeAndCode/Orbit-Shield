@@ -114,6 +114,13 @@
    ═══════════════════════════════════════════════════════════════ */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+html, body { overflow: hidden; }
+.os-app { width: 100vw; max-width: 100%; overflow: hidden; min-width: 0; }
+.os-app > * { min-width: 0; }
+.os-workspace { width: 100%; min-width: 0; overflow: hidden; }
+.os-workspace > * { min-width: 0; }
+.os-stage { min-width: 0; overflow: hidden; }
+.os-header { min-width: 0; overflow: hidden; }
 body {
   background: var(--os-bg-void);
   color: var(--os-fg1);
@@ -209,12 +216,24 @@ body::after {
 /* ═══════════════════════════════════════════════════════════════
    App layout — mission console grid
    ═══════════════════════════════════════════════════════════════ */
-.os-app { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
+.os-app {
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+  --os-rail-l: 260px;
+  --os-rail-r: 420px;
+}
 .os-workspace {
   display: grid;
-  grid-template-columns: 280px 1fr 480px;
+  grid-template-columns: var(--os-rail-l) 1fr var(--os-rail-r);
   min-height: 0;
   position: relative;
+}
+@media (min-width: 1600px) {
+  .os-app { --os-rail-l: 320px; --os-rail-r: 520px; }
+}
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .os-app { --os-rail-l: 220px; --os-rail-r: 360px; }
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
@@ -835,20 +854,91 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Responsive — mobile
+   Responsive cascade
+   sm 768 · md 1024 · lg 1280 · xl 1600
    ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 900px) {
-  .mobile-only { display: inline-flex; }
-  .os-search { max-width: 200px; }
-  .os-stats { display: none; }
+
+/* Hide tagline on tight laptops */
+@media (max-width: 1279px) {
   .os-tagline { display: none; }
-  .os-workspace { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+}
+
+/* Compact stats below 1100 */
+@media (max-width: 1099px) {
+  .os-stats .os-stat:not(:first-child) { display: none; }
+  .os-search { max-width: 320px; }
+}
+
+/* Tablet — collapse left rail to drawer, stack right rail as bottom sheet */
+@media (max-width: 1023px) {
+  .mobile-only { display: inline-flex; }
+  .os-search { max-width: 240px; }
+  .os-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 45vh;
+  }
   .os-filter {
     position: absolute; z-index: 20;
-    width: 280px; height: 100%;
+    width: min(300px, 80vw); height: 100%;
     transform: translateX(-100%);
     transition: transform var(--os-dur-2);
+    box-shadow: var(--os-shadow-overlay);
   }
   .os-filter.open { transform: none; }
-  .os-timeline { max-height: 45vh; border-left: 0; border-top: 1px solid var(--os-border-subtle); }
+  .os-timeline {
+    border-left: 0;
+    border-top: 1px solid var(--os-border-subtle);
+    max-height: 45vh;
+  }
+  /* Reposition top-right overlays to avoid stacking over each other */
+  .os-satcard {
+    top: 12px; right: 12px;
+    width: min(300px, calc(100vw - 24px));
+  }
+  .os-legend { top: 12px; right: 12px; }
+  /* When satcard visible, push legend below it */
+  .os-stage:has(.os-satcard) .os-legend { top: auto; bottom: 70px; right: 12px; }
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .os-header { gap: 8px; padding: 0 10px; }
+  .os-stats { display: none; }
+  .os-search { max-width: none; flex: 1 1 0; min-width: 0; overflow: hidden; padding: 7px 8px; }
+  .os-search input { min-width: 0; }
+  .os-search input::placeholder { font-size: 11px; }
+  .os-brand { font-size: 14px; white-space: nowrap; }
+  .os-tagline { display: none; }
+  .os-header-right { gap: 8px; }
+  .os-header-right .os-live { display: none; }
+  .os-chrome-btn { padding: 6px 8px; font-size: 11px; }
+  .os-workspace {
+    grid-template-rows: 1fr 50vh;
+  }
+  .os-detail-drawer { max-height: 70vh; }
+  .os-detail {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 14px 16px 18px;
+  }
+  .os-detail-grid { grid-template-columns: repeat(2, 1fr); gap: 10px 14px; }
+  .os-modal { max-height: 100vh; border-radius: 0; }
+  .os-scrim { padding: 0; }
+  .os-conj { padding: 10px 12px 10px 14px; }
+  .os-conj-top { flex-wrap: wrap; }
+}
+
+/* Narrow timeline panel — stack card content */
+@container (max-width: 360px) {
+  .os-conj-top { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .os-conj-pc { align-self: flex-end; }
+}
+.os-timeline-body { container-type: inline-size; }
+
+/* Detail drawer height clamp on short viewports */
+.os-detail-drawer { max-height: clamp(280px, 50%, 60vh); }
+
+/* Ultrawide — cap globe stage width so right rail stays usable */
+@media (min-width: 2200px) {
+  .os-app { --os-rail-l: 360px; --os-rail-r: 600px; }
 }
