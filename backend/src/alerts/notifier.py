@@ -29,8 +29,31 @@ def _format(c: Conjunction, cfg: AlertConfig) -> str:
 
 
 def _email(target: str, c: Conjunction, cfg: AlertConfig) -> None:
-    """Send email via SMTP. Falls back to log if SMTP_HOST unset."""
+    """Send email via Resend (preferred) or SMTP. Falls back to log if neither configured."""
     msg_body = _format(c, cfg)
+    pc = c.pc_ml if c.pc_ml is not None else c.pc_classical
+    pc_str = f"{pc:.2e}" if pc is not None else "N/A"
+    subject = f"[Orbit-Shield] Conjunction Alert — Pc={pc_str}"
+
+    if settings.resend_api_key:
+        try:
+            r = httpx.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+                json={
+                    "from": settings.resend_from,
+                    "to": [target],
+                    "subject": subject,
+                    "text": msg_body,
+                },
+                timeout=10.0,
+            )
+            r.raise_for_status()
+            logger.info("resend sent -> %s (Pc=%s)", target, pc_str)
+        except Exception:
+            logger.exception("Resend send failed for %s", target)
+        return
+
     if not settings.smtp_host:
         logger.info("[email stub -> %s]\n%s", target, msg_body)
         return

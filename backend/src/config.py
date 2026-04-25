@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     smtp_from: str = "alerts@collider.local"
     smtp_use_tls: bool = True
 
+    # Alerts: Resend (HTTP email API, preferred)
+    resend_api_key: str = ""
+    resend_from: str = "Orbit-Shield <onboarding@resend.dev>"
+
     # Alerts: default webhooks (optional global fallback)
     slack_webhook_url: str = ""
     discord_webhook_url: str = ""

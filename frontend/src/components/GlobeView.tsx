@@ -66,6 +66,22 @@ export default function GlobeView() {
   const catalogIndex = useRef<Map<number, { lat: number; lon: number; alt: number }>>(
     new Map()
   );
+  const fullCatalogIndex = useRef<Map<number, { lat: number; lon: number; alt: number }>>(
+    new Map()
+  );
+
+  // Always-on index for focus/search regardless of regime/pointcloud filters.
+  useEffect(() => {
+    fullCatalogIndex.current.clear();
+    if (!catalog) return;
+    for (const p of catalog.positions) {
+      fullCatalogIndex.current.set(p.norad_id, {
+        lat: p.lat_deg,
+        lon: p.lon_deg,
+        alt: p.alt_km,
+      });
+    }
+  }, [catalog]);
 
   const noradIds = useMemo(() => {
     if (!conjunctions || !showOrbits) return [];
@@ -83,7 +99,7 @@ export default function GlobeView() {
   // Position for focused/searched sat highlight halo
   const focusPos = useMemo(() => {
     if (focusNoradId === null) return null;
-    const p = catalogIndex.current.get(focusNoradId);
+    const p = fullCatalogIndex.current.get(focusNoradId) ?? catalogIndex.current.get(focusNoradId);
     if (!p) return null;
     return Cartesian3.fromDegrees(p.lon, p.lat, p.alt * 1000);
   }, [focusNoradId, catalog]);
@@ -231,13 +247,13 @@ export default function GlobeView() {
   useEffect(() => {
     const viewer = viewerRef.current?.cesiumElement;
     if (!viewer || focusNoradId === null) return;
-    const pos = catalogIndex.current.get(focusNoradId);
+    const pos = fullCatalogIndex.current.get(focusNoradId) ?? catalogIndex.current.get(focusNoradId);
     if (!pos) return;
     viewer.camera.flyTo({
       destination: Cartesian3.fromDegrees(pos.lon, pos.lat, (pos.alt + 8000) * 1000),
       duration: 1.8,
     });
-  }, [focusNoradId]);
+  }, [focusNoradId, catalog]);
 
   return (
     <Viewer
@@ -360,6 +376,30 @@ export default function GlobeView() {
                 />
               </Entity>
             </>
+          );
+        })}
+      {showOrbits &&
+        conjunctions?.slice(0, 10).map((c) => {
+          const pri = propagation?.find((p) => p.norad_id === c.primary_norad_id);
+          const sec = propagation?.find((p) => p.norad_id === c.secondary_norad_id);
+          if (!pri?.positions?.[0] || !sec?.positions?.[0]) return null;
+          const risk = pcToRiskLevel(c.pc_classical ?? null);
+          if (!activeRisks.has(risk)) return null;
+          const a = pri.positions[0];
+          const b = sec.positions[0];
+          const pairPositions = [
+            Cartesian3.fromDegrees(a.lon_deg, a.lat_deg, a.alt_km * 1000),
+            Cartesian3.fromDegrees(b.lon_deg, b.lat_deg, b.alt_km * 1000),
+          ];
+          const isSel = c.id === selectedId;
+          return (
+            <Entity key={`pair-${c.id}`} name={`Conjunction ${c.id}`}>
+              <PolylineGraphics
+                positions={pairPositions}
+                width={isSel ? 3 : 1.5}
+                material={isSel ? Color.fromCssColorString("#f97316") : riskCesiumColor(c.pc_classical ?? null).withAlpha(0.7)}
+              />
+            </Entity>
           );
         })}
     </Viewer>

@@ -212,7 +212,7 @@ body::after {
 .os-app { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
 .os-workspace {
   display: grid;
-  grid-template-columns: 280px 1fr 400px;
+  grid-template-columns: 280px 1fr 480px;
   min-height: 0;
   position: relative;
 }
@@ -379,13 +379,28 @@ body::after {
   font-family: "IBM Plex Mono"; font-size: 10px; color: var(--os-fg3);
 }
 .os-select {
-  width: 100%; padding: 7px 10px;
-  background: var(--os-bg-card);
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  background-color: var(--os-bg-card);
+  background-image: linear-gradient(45deg, transparent 50%, var(--os-fg2) 50%),
+                    linear-gradient(135deg, var(--os-fg2) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
   border: 1px solid var(--os-border-subtle);
+  border-radius: 4px;
   color: var(--os-fg1);
-  border-radius: 3px;
   font: 500 12px "IBM Plex Sans";
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-shadow: var(--os-shadow-overlay);
+  transition: border-color 120ms, background-color 120ms;
 }
+.os-select:hover { border-color: var(--os-border-base); background-color: var(--os-bg-elevated); }
+.os-select:focus { outline: none; border-color: var(--os-signal); }
+.os-select option { background: var(--os-bg-card); color: var(--os-fg1); padding: 8px 12px; }
 
 /* ── Globe stage ────────────────────────────────────────────── */
 .os-stage {
@@ -397,7 +412,7 @@ body::after {
 .os-globe { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
 .os-legend {
-  position: absolute; bottom: 20px; left: 20px;
+  position: absolute; top: 20px; right: 20px;
   background: rgba(7,11,18,0.85);
   border: 1px solid var(--os-border-subtle);
   border-radius: 4px;
@@ -470,17 +485,23 @@ body::after {
 }
 .os-conj-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .os-conj-top {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 8px; margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 6px;
 }
 .os-conj-names {
-  font-size: 13px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   color: var(--os-fg1); line-height: 1.3;
-  min-width: 0;
+  min-width: 0; flex: 1;
+  display: flex; align-items: center; gap: 4px;
+  overflow: hidden;
 }
-.os-conj-x { color: var(--os-fg3); margin: 0 6px; }
+.os-conj-names > span:not(.os-conj-x) {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0; flex-shrink: 1;
+}
+.os-conj-x { color: var(--os-fg3); flex-shrink: 0; }
 .os-conj-pc {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
   flex-shrink: 0;
 }
 .os-conj-pc .mono { font-size: 12px; font-weight: 600; }

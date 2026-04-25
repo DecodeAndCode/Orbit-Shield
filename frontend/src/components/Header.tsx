@@ -38,6 +38,12 @@ export default function Header() {
           placeholder="Search objects, NORAD ID, or constellation…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && data?.items?.[0]) {
+              focusOnSat(data.items[0].norad_id);
+              setSearch("");
+            }
+          }}
         />
         {search && data?.items && data.items.length > 0 && (
           <div
