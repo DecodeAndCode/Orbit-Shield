@@ -58,7 +58,7 @@ export default function Header() {
               borderRadius: 4,
               maxHeight: 280,
               overflowY: "auto",
-              zIndex: 60,
+              zIndex: 9999,
               boxShadow: "var(--os-shadow-overlay)",
             }}
           >
