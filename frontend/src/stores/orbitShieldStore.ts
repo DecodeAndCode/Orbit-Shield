@@ -45,6 +45,8 @@ interface OrbitShieldStore extends FilterState {
   toggleSidebar: () => void;
   detailCollapsed: boolean;
   toggleDetail: () => void;
+  timelineExpanded: boolean; // mobile - timeline visibility
+  setTimelineExpanded: (expanded: boolean) => void;
   alertModalOpen: boolean;
   setAlertModalOpen: (open: boolean) => void;
   filterDrawerOpen: boolean; // mobile
@@ -82,6 +84,8 @@ export const useOrbitShieldStore = create<OrbitShieldStore>((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   detailCollapsed: false,
   toggleDetail: () => set((s) => ({ detailCollapsed: !s.detailCollapsed })),
+  timelineExpanded: false,
+  setTimelineExpanded: (expanded) => set({ timelineExpanded: expanded }),
   alertModalOpen: false,
   setAlertModalOpen: (open) => set({ alertModalOpen: open }),
   filterDrawerOpen: false,

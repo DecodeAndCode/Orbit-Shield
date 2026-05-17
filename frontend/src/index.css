@@ -522,9 +522,9 @@ body::after {
 .os-conj-x { color: var(--os-fg3); flex-shrink: 0; }
 .os-conj-pc {
   display: flex; flex-direction: row; align-items: center; gap: 6px;
-  flex-shrink: 0;
+  flex-shrink: 0; min-width: fit-content; white-space: nowrap;
 }
-.os-conj-pc .mono { font-size: 12px; font-weight: 600; }
+.os-conj-pc .mono { font-size: 12px; font-weight: 600; line-height: 1; }
 .os-ml-tag {
   font-size: 9px; font-weight: 700;
   color: var(--os-signal);
@@ -876,7 +876,7 @@ input[type="range"]::-moz-range-thumb {
   .os-search { max-width: 240px; }
   .os-workspace {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 45vh;
+    grid-template-rows: 1fr auto;
   }
   .os-filter {
     position: absolute; z-index: 20;
@@ -889,7 +889,16 @@ input[type="range"]::-moz-range-thumb {
   .os-timeline {
     border-left: 0;
     border-top: 1px solid var(--os-border-subtle);
+    max-height: none;
+  }
+  .os-timeline-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--os-dur-2) ease-out;
+  }
+  .os-timeline-body.is-expanded {
     max-height: 45vh;
+    overflow-y: auto;
   }
   /* Reposition top-right overlays to avoid stacking over each other */
   .os-satcard {
@@ -914,7 +923,10 @@ input[type="range"]::-moz-range-thumb {
   .os-header-right .os-live { display: none; }
   .os-chrome-btn { padding: 6px 8px; font-size: 11px; }
   .os-workspace {
-    grid-template-rows: 1fr 50vh;
+    grid-template-rows: 1fr auto;
+  }
+  .os-timeline-body.is-expanded {
+    max-height: 50vh;
   }
   .os-detail-drawer { max-height: 70vh; }
   .os-detail {
