@@ -233,6 +233,24 @@ body::after {
 @media (min-width: 1600px) {
   .os-app { --os-rail-l: 320px; --os-rail-r: 520px; }
 }
+
+/* Below 1800px - move timeline to bottom, keep left drawer */
+@media (max-width: 1799px) {
+  .os-workspace {
+    grid-template-columns: var(--os-rail-l) 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .os-timeline {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--os-border-subtle);
+    max-height: 40vh;
+  }
+  .os-detail-drawer {
+    max-height: 50vh;
+  }
+}
+
 @media (max-width: 1279px) and (min-width: 1024px) {
   .os-app { --os-rail-l: 220px; --os-rail-r: 360px; }
 }
@@ -506,11 +524,11 @@ body::after {
 .os-conj-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .os-conj-top {
   display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; margin-bottom: 6px;
+  gap: 12px; margin-bottom: 6px; min-height: 20px;
 }
 .os-conj-names {
   font-size: 12px; font-weight: 600;
-  color: var(--os-fg1); line-height: 1.3;
+  color: var(--os-fg1); line-height: 1.4;
   min-width: 0; flex: 1;
   display: flex; align-items: center; gap: 4px;
   overflow: hidden;
@@ -533,8 +551,8 @@ body::after {
   letter-spacing: 0.1em;
 }
 .os-conj-meta {
-  display: flex; justify-content: space-between;
-  font-size: 11px; color: var(--os-fg3);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--os-fg3); line-height: 1.4;
 }
 
 /* ── Detail drawer ──────────────────────────────────────────── */

@@ -82,7 +82,7 @@ export const useOrbitShieldStore = create<OrbitShieldStore>((set) => ({
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-  detailCollapsed: false,
+  detailCollapsed: typeof window !== 'undefined' && window.innerWidth < 1800,
   toggleDetail: () => set((s) => ({ detailCollapsed: !s.detailCollapsed })),
   timelineExpanded: false,
   setTimelineExpanded: (expanded) => set({ timelineExpanded: expanded }),
