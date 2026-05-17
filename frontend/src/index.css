@@ -512,7 +512,7 @@ body::after {
   background: var(--os-bg-card);
   border: 1px solid var(--os-border-subtle);
   border-radius: 4px;
-  padding: 14px 14px 16px 18px;
+  padding: 28px 14px 32px 18px;
   cursor: pointer; overflow: hidden;
   transition: border-color var(--os-dur-1), background var(--os-dur-1);
 }
@@ -955,7 +955,7 @@ input[type="range"]::-moz-range-thumb {
   .os-detail-grid { grid-template-columns: repeat(2, 1fr); gap: 10px 14px; }
   .os-modal { max-height: 100vh; border-radius: 0; }
   .os-scrim { padding: 0; }
-  .os-conj { padding: 12px 12px 14px 14px; }
+  .os-conj { padding: 24px 12px 28px 14px; }
   .os-conj-top { flex-wrap: wrap; }
 }
 
