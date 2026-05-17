@@ -37,8 +37,15 @@ Thumbs.db
 # Alembic
 backend/alembic/versions/__pycache__/
 
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
 # Claude Code / plugins / generated outputs
 .claude/
 .superpowers/
 graphify-out/
 .playwright-mcp/
+.vercel
