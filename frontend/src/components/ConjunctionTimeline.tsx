@@ -11,6 +11,8 @@ export default function ConjunctionTimeline() {
   const select = useOrbitShieldStore((s) => s.selectConjunction);
   const timelineExpanded = useOrbitShieldStore((s) => s.timelineExpanded);
   const setTimelineExpanded = useOrbitShieldStore((s) => s.setTimelineExpanded);
+  const detailCollapsed = useOrbitShieldStore((s) => s.detailCollapsed);
+  const toggleDetail = useOrbitShieldStore((s) => s.toggleDetail);
 
   const { data, isLoading, error } = useConjunctions(
     minPc ?? undefined,
@@ -31,6 +33,14 @@ export default function ConjunctionTimeline() {
       select(filtered[0].id);
     }
   }, [filtered, selectedId, select]);
+
+  // Handle conjunction click - select and expand detail if collapsed
+  const handleConjunctionClick = (id: number) => {
+    select(id);
+    if (detailCollapsed) {
+      toggleDetail();
+    }
+  };
 
   return (
     <>
@@ -74,7 +84,7 @@ export default function ConjunctionTimeline() {
             key={c.id}
             conjunction={c}
             selected={c.id === selectedId}
-            onClick={() => select(c.id)}
+            onClick={() => handleConjunctionClick(c.id)}
           />
         ))}
         {!isLoading && filtered.length === 0 && !error && (
