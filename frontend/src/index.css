@@ -233,24 +233,6 @@ body::after {
 @media (min-width: 1600px) {
   .os-app { --os-rail-l: 320px; --os-rail-r: 520px; }
 }
-
-/* Below 1800px - move timeline to bottom, keep left drawer */
-@media (max-width: 1799px) {
-  .os-workspace {
-    grid-template-columns: var(--os-rail-l) 1fr;
-    grid-template-rows: 1fr auto;
-  }
-  .os-timeline {
-    grid-column: 1 / -1;
-    border-left: 0;
-    border-top: 1px solid var(--os-border-subtle);
-    max-height: 40vh;
-  }
-  .os-detail-drawer {
-    max-height: 50vh;
-  }
-}
-
 @media (max-width: 1279px) and (min-width: 1024px) {
   .os-app { --os-rail-l: 220px; --os-rail-r: 360px; }
 }
