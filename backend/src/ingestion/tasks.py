@@ -20,6 +20,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from src.config import settings
+# Import ML tasks to register them with Celery
+try:
+    from src.ml import tasks as ml_tasks  # noqa: F401
+except ImportError:
+    logger.warning("ML tasks not available - ML dependencies may not be installed")
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +66,14 @@ celery_app.conf.update(
         "run-conjunction-screening": {
             "task": "src.propagation.tasks.run_conjunction_screening",
             "schedule": crontab(minute=0, hour="*/8"),
+        },
+        "ml-monitor-performance": {
+            "task": "ml.monitor_model_performance",
+            "schedule": crontab(minute=0, hour=6),  # Daily at 6am UTC
+        },
+        "ml-retrain-models": {
+            "task": "ml.retrain_models",
+            "schedule": crontab(minute=0, hour=2, day_of_week=0),  # Weekly Sunday 2am UTC
         },
     },
 )
