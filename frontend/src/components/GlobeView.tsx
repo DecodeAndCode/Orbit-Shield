@@ -158,7 +158,7 @@ export default function GlobeView() {
       const prim = collection.add({
         position: Cartesian3.fromDegrees(p.lon_deg, p.lat_deg, p.alt_km * 1000),
         color: regimeColor(p.alt_km),
-        pixelSize: 2.5,
+        pixelSize: 5,  // Increased from 2.5 for better visibility
         outlineWidth: 0,
       });
       // attach norad_id for picking
