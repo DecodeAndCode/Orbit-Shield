@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://orbit-shield-api.fly.dev/api/:path*" }
+  ],
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "backend": {
+      "entrypoint": "backend",
+      "routePrefix": "/_/backend"
+    }
+  }
+}

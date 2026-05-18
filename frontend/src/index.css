@@ -239,6 +239,7 @@ body::after {
 
 /* ── Header ─────────────────────────────────────────────────── */
 .os-header {
+  position: relative;
   display: flex; align-items: center; gap: 24px; padding: 0 20px;
   background: var(--os-bg-panel);
   border-bottom: 1px solid var(--os-border-subtle);
@@ -914,7 +915,7 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 767px) {
   .os-header { gap: 8px; padding: 0 10px; }
   .os-stats { display: none; }
-  .os-search { max-width: none; flex: 1 1 0; min-width: 0; padding: 7px 8px; }
+  .os-search { max-width: none; flex: 1 1 0; padding: 7px 8px; }
   .os-search input { min-width: 0; }
   .os-search input::placeholder { font-size: 11px; }
   .os-brand { font-size: 14px; white-space: nowrap; }
