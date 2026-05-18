@@ -240,6 +240,7 @@ body::after {
 /* ── Header ─────────────────────────────────────────────────── */
 .os-header {
   position: relative;
+  z-index: 100;
   display: flex; align-items: center; gap: 24px; padding: 0 20px;
   background: var(--os-bg-panel);
   border-bottom: 1px solid var(--os-border-subtle);
