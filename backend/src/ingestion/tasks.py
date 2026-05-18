@@ -105,7 +105,17 @@ def fetch_celestrak_tles(self):
 
     async def _fetch():
         client = CelesTrakClient()
-        return await client.fetch_group("active")
+        # Temporarily using multiple smaller groups instead of "active" to avoid CelesTrak rate limits
+        groups = ["stations", "starlink", "one-web", "planet", "spire"]
+        all_records = []
+        for group in groups:
+            try:
+                records = await client.fetch_group(group)
+                all_records.extend(records)
+                logger.info(f"Fetched {len(records)} from group '{group}'")
+            except Exception as e:
+                logger.warning(f"Failed to fetch group '{group}': {e}")
+        return all_records
 
     try:
         records = _run_async(_fetch())
