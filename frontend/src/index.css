@@ -121,7 +121,7 @@ html, body { overflow: hidden; }
 .os-workspace { width: 100%; min-width: 0; overflow: hidden; }
 .os-workspace > * { min-width: 0; }
 .os-stage { min-width: 0; overflow: hidden; }
-.os-header { min-width: 0; overflow: hidden; }
+.os-header { min-width: 0; overflow: visible; }
 body {
   background: var(--os-bg-void);
   color: var(--os-fg1);
