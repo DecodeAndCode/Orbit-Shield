@@ -52,6 +52,6 @@ async def root() -> dict[str, str]:
         "service": "orbit-shield",
         "status": "ok",
         "docs": "/docs",
-        "frontend": "http://localhost:5173",
+        "frontend": "https://orbit-shield-seven.vercel.app",
         "health": "/health",
     }
