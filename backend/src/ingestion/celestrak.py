@@ -50,7 +50,8 @@ class CelesTrakClient:
         Args:
             group: CelesTrak group name (e.g., "active", "stations").
         """
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        headers = {"User-Agent": "orbit-shield/1.0 (chiranjeevkundu2000@gmail.com)"}
+        async with httpx.AsyncClient(timeout=60.0, headers=headers) as client:
             response = await client.get(
                 self.gp_url,
                 params={"GROUP": group, "FORMAT": "json"},
@@ -60,7 +61,8 @@ class CelesTrakClient:
 
     async def fetch_by_norad_id(self, norad_id: int) -> GPRecord | None:
         """Fetch GP record for a single satellite by NORAD catalog number."""
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        headers = {"User-Agent": "orbit-shield/1.0 (chiranjeevkundu2000@gmail.com)"}
+        async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
             response = await client.get(
                 self.gp_url,
                 params={"CATNR": norad_id, "FORMAT": "json"},
