@@ -45,13 +45,18 @@ celery_app.conf.update(
     # Reduce Redis polling frequency to lower Upstash command usage
     broker_transport_options={
         "visibility_timeout": 3600,
-        "polling_interval": 10.0,  # default 1s — workers poll every 10s instead
+        "polling_interval": 30.0,  # worker BRPOP every 30s
+        "priority_steps": [0],  # single queue instead of 4 priority queues (4x fewer BRPOPs)
     },
     # Don't store task results we don't read (saves ~50% of Redis writes)
     task_ignore_result=True,
-    result_expires=300,  # 5 min TTL for any results that do get stored
+    result_expires=300,
+    # Disable Celery control + event channels (extra Redis pub/sub traffic)
+    worker_enable_remote_control=False,
+    worker_send_task_events=False,
+    task_send_sent_event=False,
     # Beat scheduler: poll less frequently
-    beat_max_loop_interval=30,  # check schedule every 30s instead of 5s default
+    beat_max_loop_interval=120,  # check schedule every 2min instead of 30s
     beat_schedule={
         "fetch-celestrak-tles": {
             "task": "src.ingestion.tasks.fetch_celestrak_tles",

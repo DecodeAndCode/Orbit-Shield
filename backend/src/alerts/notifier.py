@@ -36,22 +36,25 @@ def _email(target: str, c: Conjunction, cfg: AlertConfig) -> None:
     subject = f"[Orbit-Shield] Conjunction Alert — Pc={pc_str}"
 
     if settings.resend_api_key:
+        # Resend sandbox is case-sensitive; normalize to avoid 403 on capital-letter mismatches
+        recipient = target.strip().lower()
         try:
             r = httpx.post(
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {settings.resend_api_key}"},
                 json={
                     "from": settings.resend_from,
-                    "to": [target],
+                    "to": [recipient],
                     "subject": subject,
                     "text": msg_body,
                 },
                 timeout=10.0,
             )
             r.raise_for_status()
-            logger.info("resend sent -> %s (Pc=%s)", target, pc_str)
+            logger.info("resend sent -> %s (Pc=%s)", recipient, pc_str)
         except Exception:
-            logger.exception("Resend send failed for %s", target)
+            logger.exception("Resend send failed for %s", recipient)
+            raise
         return
 
     if not settings.smtp_host:

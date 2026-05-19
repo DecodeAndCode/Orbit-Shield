@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -29,11 +30,15 @@ def matches(conj: Conjunction, cfg: AlertConfig) -> bool:
     return True
 
 
+MAX_DISPATCHES_PER_RUN = 10
+
+
 def evaluate(session: Session, conjunctions: Iterable[Conjunction] | None = None) -> int:
     """Evaluate conjunctions vs all enabled alerts. Returns dispatch count.
 
     If `conjunctions` is None, pulls all conjunctions with alerted_at IS NULL.
     Marks alerted_at on each row dispatched to prevent re-firing.
+    Caps total dispatches at MAX_DISPATCHES_PER_RUN to prevent backlog spam.
     """
     cfgs = session.execute(
         select(AlertConfig).where(AlertConfig.enabled.is_(True))
@@ -44,7 +49,10 @@ def evaluate(session: Session, conjunctions: Iterable[Conjunction] | None = None
     if conjunctions is None:
         conjunctions = (
             session.execute(
-                select(Conjunction).where(Conjunction.alerted_at.is_(None))
+                select(Conjunction)
+                .where(Conjunction.alerted_at.is_(None))
+                .order_by(Conjunction.pc_classical.desc().nulls_last())
+                .limit(MAX_DISPATCHES_PER_RUN)
             )
             .scalars()
             .all()
@@ -52,6 +60,9 @@ def evaluate(session: Session, conjunctions: Iterable[Conjunction] | None = None
 
     fired = 0
     for c in conjunctions:
+        if fired >= MAX_DISPATCHES_PER_RUN:
+            logger.warning("alert evaluator hit MAX_DISPATCHES_PER_RUN=%d; deferring rest", MAX_DISPATCHES_PER_RUN)
+            break
         if c.alerted_at is not None:
             continue
         dispatched_any = False
@@ -63,6 +74,8 @@ def evaluate(session: Session, conjunctions: Iterable[Conjunction] | None = None
                         dispatch(channel, target, c, cfg)
                         fired += 1
                         dispatched_any = True
+                        # Resend free tier = 2 req/sec; sleep to stay under
+                        time.sleep(0.6)
                     except Exception:
                         logger.exception("alert dispatch failed: %s -> %s", channel, target)
         if dispatched_any:
