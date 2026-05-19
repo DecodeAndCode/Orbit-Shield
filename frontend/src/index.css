@@ -1065,7 +1065,9 @@ input[type="range"]::-moz-range-thumb {
   /* Reposition top-right overlays to avoid stacking over each other */
   .os-satcard {
     top: 12px; right: 12px;
-    width: min(300px, calc(100vw - 24px));
+    width: min(280px, calc(100vw - 24px));
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
   }
   .os-legend { top: 12px; right: 12px; }
   /* When satcard visible, push legend below it */
@@ -1091,9 +1093,9 @@ input[type="range"]::-moz-range-thumb {
     grid-template-rows: 1fr auto;
   }
   .os-timeline-body.is-expanded {
-    max-height: 50vh;
+    max-height: 45vh;
   }
-  .os-detail-drawer { max-height: 70vh; }
+  .os-detail-drawer { max-height: 55vh; }
   .os-detail {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1104,6 +1106,37 @@ input[type="range"]::-moz-range-thumb {
   .os-scrim { padding: 0; }
   .os-conj { padding: 14px 12px 14px 14px; }
   .os-conj-top { flex-wrap: nowrap; gap: 8px; }
+
+  /* SatDetailCard becomes bottom-sheet on mobile */
+  .os-satcard {
+    top: auto; right: 0; left: 0; bottom: 0;
+    width: 100%;
+    max-height: 55vh;
+    overflow-y: auto;
+    border-radius: 8px 8px 0 0;
+    border-left: 0; border-right: 0; border-bottom: 0;
+    animation: os-sheet-up 240ms var(--os-ease-out);
+  }
+  .os-satcard::before {
+    content: ""; display: block;
+    width: 36px; height: 4px; margin: 8px auto 0;
+    background: var(--os-fg3); opacity: 0.4;
+    border-radius: 2px;
+  }
+  .os-satcard-body { padding-top: 10px; }
+  /* When satcard visible, lift legend above sheet */
+  .os-stage:has(.os-satcard) .os-legend {
+    top: 12px; right: 12px; bottom: auto;
+  }
+  /* Search results dropdown cap on mobile */
+  .os-search-results { max-height: 40vh; }
+  /* Cap search overlay so it doesn't grow with results */
+  .os-search-overlay { max-height: 50vh; }
+}
+
+@keyframes os-sheet-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* xs — extra-small phones: collapse Alerts label to icon */
