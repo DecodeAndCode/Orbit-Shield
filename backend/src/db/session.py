@@ -13,8 +13,14 @@ from src.config import settings
 engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_size=20,
-    max_overflow=10,
+    pool_size=10,
+    max_overflow=5,
+    pool_pre_ping=True,  # check liveness before use; reconnects dead connections silently
+    pool_recycle=300,  # drop connections older than 5 min (Neon kills idle conns)
+    connect_args={
+        "timeout": 30,  # asyncpg connect timeout (default 10s) — Neon cold-start can exceed
+        "server_settings": {"jit": "off"},  # Neon recommends; faster small queries
+    },
 )
 
 async_session_factory = async_sessionmaker(
