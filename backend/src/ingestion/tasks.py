@@ -115,8 +115,24 @@ def fetch_celestrak_tles(self):
 
     async def _fetch():
         client = CelesTrakClient()
-        # Temporarily using multiple smaller groups instead of "active" to avoid CelesTrak rate limits
-        groups = ["stations", "starlink", "one-web", "planet", "spire"]
+        # Broadened CelesTrak group coverage as a fallback when Space-Track catalog
+        # is unavailable. Each fetch is wrapped in try/except below so a single 403
+        # doesn't drop the rest.
+        groups = [
+            "stations",
+            "starlink",
+            "one-web",
+            "planet",
+            "spire",
+            "geo",
+            "weather",
+            "gps-ops",
+            "intelsat",
+            "iridium-NEXT",
+            "science",
+            "military",
+            "active",
+        ]
         all_records = []
         for group in groups:
             try:

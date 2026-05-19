@@ -255,6 +255,7 @@ body::after {
   color: var(--os-fg3);
 }
 .os-search {
+  position: relative;
   flex: 1; max-width: 520px; display: flex; align-items: center; gap: 8px;
   padding: 7px 12px;
   background: var(--os-bg-card);
@@ -873,7 +874,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Tablet — collapse left rail to drawer, stack right rail as bottom sheet */
-@media (max-width: 1023px) {
+@media (max-width: 1199px) {
   .mobile-only { display: inline-flex; }
   .os-search { max-width: 240px; }
   .os-workspace {
@@ -916,6 +917,8 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 767px) {
   .os-header { gap: 8px; padding: 0 10px; }
   .os-stats { display: none; }
+  .os-workspace { padding: 0; margin: 0; }
+  .os-stage { width: 100%; min-width: 0; }
   /* Hide search bar by default on mobile; show only when toggled */
   .os-search { display: none; }
   .os-search.os-search-expanded {
