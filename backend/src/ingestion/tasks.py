@@ -220,49 +220,71 @@ def fetch_spacetrack_catalog(self):
         logger.info(f"Fetched {len(records)} GP records from Space-Track")
 
         session = _get_sync_session()
+        BATCH_SIZE = 1000
         try:
-            for record in records:
-                stmt = (
-                    pg_insert(Satellite.__table__)
-                    .values(
-                        norad_id=int(record["NORAD_CAT_ID"]),
-                        name=record.get("OBJECT_NAME"),
-                        object_type=record.get("OBJECT_TYPE"),
-                        country=record.get("COUNTRY_CODE"),
-                        launch_date=record.get("LAUNCH_DATE"),
-                        decay_date=record.get("DECAY_DATE"),
-                        rcs_size=record.get("RCS_SIZE"),
-                    )
-                    .on_conflict_do_update(
+            now_ts = datetime.now(timezone.utc)
+            sat_rows = []
+            elem_rows = []
+            total = 0
+
+            def flush():
+                nonlocal sat_rows, elem_rows
+                if sat_rows:
+                    sat_stmt = pg_insert(Satellite.__table__).values(sat_rows)
+                    sat_stmt = sat_stmt.on_conflict_do_update(
                         index_elements=["norad_id"],
                         set_={
-                            "name": record.get("OBJECT_NAME"),
-                            "object_type": record.get("OBJECT_TYPE"),
-                            "country": record.get("COUNTRY_CODE"),
-                            "rcs_size": record.get("RCS_SIZE"),
-                            "updated_at": datetime.now(timezone.utc),
+                            "name": sat_stmt.excluded.name,
+                            "object_type": sat_stmt.excluded.object_type,
+                            "country": sat_stmt.excluded.country,
+                            "rcs_size": sat_stmt.excluded.rcs_size,
+                            "updated_at": now_ts,
                         },
                     )
-                )
-                session.execute(stmt)
+                    session.execute(sat_stmt)
+                if elem_rows:
+                    elem_stmt = pg_insert(OrbitalElement.__table__).values(elem_rows)
+                    elem_stmt = elem_stmt.on_conflict_do_nothing(
+                        constraint="uq_orbital_element_norad_epoch",
+                    )
+                    session.execute(elem_stmt)
+                session.commit()
+                sat_rows = []
+                elem_rows = []
 
-                elem = OrbitalElement(
-                    norad_id=int(record["NORAD_CAT_ID"]),
-                    epoch=datetime.fromisoformat(record["EPOCH"]),
-                    tle_line1=record.get("TLE_LINE1"),
-                    tle_line2=record.get("TLE_LINE2"),
-                    mean_motion=float(record["MEAN_MOTION"]),
-                    eccentricity=float(record["ECCENTRICITY"]),
-                    inclination=float(record["INCLINATION"]),
-                    raan=float(record["RA_OF_ASC_NODE"]),
-                    arg_perigee=float(record["ARG_OF_PERICENTER"]),
-                    mean_anomaly=float(record["MEAN_ANOMALY"]),
-                    bstar=float(record["BSTAR"]),
-                )
-                session.add(elem)
+            for record in records:
+                try:
+                    nid = int(record["NORAD_CAT_ID"])
+                    sat_rows.append({
+                        "norad_id": nid,
+                        "name": record.get("OBJECT_NAME"),
+                        "object_type": record.get("OBJECT_TYPE"),
+                        "country": record.get("COUNTRY_CODE"),
+                        "launch_date": record.get("LAUNCH_DATE"),
+                        "decay_date": record.get("DECAY_DATE"),
+                        "rcs_size": record.get("RCS_SIZE"),
+                    })
+                    elem_rows.append({
+                        "norad_id": nid,
+                        "epoch": datetime.fromisoformat(record["EPOCH"]),
+                        "tle_line1": record.get("TLE_LINE1"),
+                        "tle_line2": record.get("TLE_LINE2"),
+                        "mean_motion": float(record["MEAN_MOTION"]),
+                        "eccentricity": float(record["ECCENTRICITY"]),
+                        "inclination": float(record["INCLINATION"]),
+                        "raan": float(record["RA_OF_ASC_NODE"]),
+                        "arg_perigee": float(record["ARG_OF_PERICENTER"]),
+                        "mean_anomaly": float(record["MEAN_ANOMALY"]),
+                        "bstar": float(record["BSTAR"]),
+                    })
+                    total += 1
+                except (KeyError, ValueError, TypeError):
+                    continue
+                if len(sat_rows) >= BATCH_SIZE:
+                    flush()
 
-            session.commit()
-            logger.info(f"Synced {len(records)} objects from Space-Track catalog")
+            flush()
+            logger.info(f"Synced {total} objects from Space-Track catalog")
         except Exception:
             session.rollback()
             raise
