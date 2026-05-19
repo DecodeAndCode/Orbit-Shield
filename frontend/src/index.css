@@ -916,9 +916,25 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 767px) {
   .os-header { gap: 8px; padding: 0 10px; }
   .os-stats { display: none; }
-  .os-search { max-width: none; flex: 1 1 0; padding: 7px 8px; }
-  .os-search input { min-width: 0; }
+  /* Hide search bar by default on mobile; show only when toggled */
+  .os-search { display: none; }
+  .os-search.os-search-expanded {
+    display: flex;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-width: none;
+    margin: 0;
+    padding: 10px 12px;
+    background: var(--os-bg-panel);
+    border-top: 1px solid var(--os-border-subtle);
+    border-bottom: 1px solid var(--os-border-subtle);
+    z-index: 200;
+  }
+  .os-search.os-search-expanded input { min-width: 0; flex: 1; }
   .os-search input::placeholder { font-size: 11px; }
+  .os-search-toggle { margin-left: auto; }
   .os-brand { font-size: 14px; white-space: nowrap; }
   .os-tagline { display: none; }
   .os-header-right { gap: 8px; }

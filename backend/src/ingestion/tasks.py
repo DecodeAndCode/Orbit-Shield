@@ -42,6 +42,16 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Reduce Redis polling frequency to lower Upstash command usage
+    broker_transport_options={
+        "visibility_timeout": 3600,
+        "polling_interval": 10.0,  # default 1s — workers poll every 10s instead
+    },
+    # Don't store task results we don't read (saves ~50% of Redis writes)
+    task_ignore_result=True,
+    result_expires=300,  # 5 min TTL for any results that do get stored
+    # Beat scheduler: poll less frequently
+    beat_max_loop_interval=30,  # check schedule every 30s instead of 5s default
     beat_schedule={
         "fetch-celestrak-tles": {
             "task": "src.ingestion.tasks.fetch_celestrak_tles",
@@ -399,3 +409,90 @@ def fetch_space_weather(self):
     except Exception as exc:
         logger.error(f"Space weather fetch failed: {exc}")
         raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=300)
+def fetch_conjunction_satellites(self):
+    """Fetch orbital elements for satellites in conjunctions that are missing from catalog."""
+    from sqlalchemy import select
+    from src.db.models import Conjunction, OrbitalElement, Satellite
+    from src.ingestion.celestrak import CelesTrakClient
+
+    session = _get_sync_session()
+    try:
+        conj_ids_query = select(Conjunction.primary_norad_id).union(
+            select(Conjunction.secondary_norad_id)
+        )
+        conj_ids = {row[0] for row in session.execute(conj_ids_query).all()}
+
+        existing_ids = {
+            row[0] for row in session.execute(select(OrbitalElement.norad_id).distinct()).all()
+        }
+
+        missing_ids = conj_ids - existing_ids
+        logger.info(f"Need to fetch {len(missing_ids)} conjunction satellites")
+
+        if not missing_ids:
+            return
+
+        async def _fetch_one(nid):
+            client = CelesTrakClient()
+            return await client.fetch_by_norad_id(nid)
+
+        fetched = 0
+        for nid in missing_ids:
+            try:
+                record = _run_async(_fetch_one(nid))
+                if not record:
+                    continue
+
+                sat_stmt = (
+                    pg_insert(Satellite.__table__)
+                    .values(
+                        norad_id=record.norad_id,
+                        name=record.name,
+                        object_type=record.object_type,
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["norad_id"],
+                        set_={
+                            "name": record.name,
+                            "object_type": record.object_type,
+                            "updated_at": datetime.now(timezone.utc),
+                        },
+                    )
+                )
+                session.execute(sat_stmt)
+
+                elem_stmt = (
+                    pg_insert(OrbitalElement.__table__)
+                    .values(
+                        norad_id=record.norad_id,
+                        epoch=record.epoch,
+                        tle_line1=record.tle_line1,
+                        tle_line2=record.tle_line2,
+                        mean_motion=record.mean_motion,
+                        eccentricity=record.eccentricity,
+                        inclination=record.inclination,
+                        raan=record.raan,
+                        arg_perigee=record.arg_perigee,
+                        mean_anomaly=record.mean_anomaly,
+                        bstar=record.bstar,
+                    )
+                    .on_conflict_do_nothing(
+                        constraint="uq_orbital_element_norad_epoch",
+                    )
+                )
+                session.execute(elem_stmt)
+                fetched += 1
+            except Exception as e:
+                logger.warning(f"Failed to fetch NORAD {nid}: {e}")
+
+        session.commit()
+        logger.info(f"Fetched {fetched}/{len(missing_ids)} conjunction satellites")
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"Conjunction satellites fetch failed: {exc}")
+        raise self.retry(exc=exc)
+    finally:
+        session.close()
