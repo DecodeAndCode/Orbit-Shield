@@ -1111,12 +1111,21 @@ input[type="range"]::-moz-range-thumb {
   .os-satcard {
     top: auto; right: 0; left: 0; bottom: 0;
     width: 100%;
-    max-height: 55vh;
     overflow-y: auto;
     border-radius: 8px 8px 0 0;
     border-left: 0; border-right: 0; border-bottom: 0;
     animation: os-sheet-up 240ms var(--os-ease-out);
+    cursor: pointer;
+    transition: max-height var(--os-dur-2) var(--os-ease-out);
   }
+  .os-satcard.is-peek { max-height: 110px; overflow: hidden; }
+  .os-satcard.is-peek::after {
+    content: "Tap to expand"; display: block;
+    text-align: center; font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--os-fg3);
+    padding-bottom: 6px;
+  }
+  .os-satcard.is-expanded { max-height: 55vh; cursor: default; }
   .os-satcard::before {
     content: ""; display: block;
     width: 36px; height: 4px; margin: 8px auto 0;
@@ -1124,14 +1133,26 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 2px;
   }
   .os-satcard-body { padding-top: 10px; }
+  .os-satcard.is-peek .os-satcard-meta,
+  .os-satcard.is-peek .os-satcard-grid,
+  .os-satcard.is-peek .os-satcard-actions { display: none; }
   /* When satcard visible, lift legend above sheet */
   .os-stage:has(.os-satcard) .os-legend {
     top: 12px; right: 12px; bottom: auto;
   }
   /* Search results dropdown cap on mobile */
-  .os-search-results { max-height: 40vh; }
+  .os-search-results { max-height: 35vh; }
   /* Cap search overlay so it doesn't grow with results */
-  .os-search-overlay { max-height: 50vh; }
+  .os-search-overlay { max-height: 45vh; }
+}
+
+/* Clickable timeline header — covers full bar */
+.os-timeline-head-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.os-timeline-head-clickable:hover {
+  background: var(--os-bg-elevated);
 }
 
 @keyframes os-sheet-up {

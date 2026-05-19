@@ -44,7 +44,13 @@ export default function ConjunctionTimeline() {
 
   return (
     <>
-      <div className="os-panel-head os-timeline-head">
+      <div
+        className="os-panel-head os-timeline-head os-timeline-head-clickable"
+        onClick={() => setTimelineExpanded(!timelineExpanded)}
+        role="button"
+        aria-expanded={timelineExpanded}
+        aria-label={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
+      >
         <div>
           <h2>Conjunctions</h2>
           <p>Sorted by Pc · next {hoursAhead}h</p>
@@ -53,11 +59,10 @@ export default function ConjunctionTimeline() {
           <span className="os-counter">
             {filtered.length}/{data?.length ?? 0}
           </span>
-          <button
+          <span
             className="os-icon-btn mobile-only"
-            onClick={() => setTimelineExpanded(!timelineExpanded)}
-            aria-label={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
-            style={{ padding: 6 }}
+            aria-hidden
+            style={{ padding: 6, pointerEvents: "none" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {timelineExpanded ? (
@@ -66,7 +71,7 @@ export default function ConjunctionTimeline() {
                 <polyline points="6 9 12 15 18 9" />
               )}
             </svg>
-          </button>
+          </span>
         </div>
       </div>
 

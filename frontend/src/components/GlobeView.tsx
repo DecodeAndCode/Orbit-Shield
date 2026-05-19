@@ -158,7 +158,7 @@ export default function GlobeView() {
       const prim = collection.add({
         position: Cartesian3.fromDegrees(p.lon_deg, p.lat_deg, p.alt_km * 1000),
         color: regimeColor(p.alt_km),
-        pixelSize: 5,  // Increased from 2.5 for better visibility
+        pixelSize: 2.5,
         outlineWidth: 0,
       });
       // attach norad_id for picking
@@ -341,7 +341,7 @@ export default function GlobeView() {
                   positions={positions}
                   width={width}
                   material={
-                    isSelected ? Color.fromCssColorString("#22d3ee") : color
+                    isSelected ? Color.fromCssColorString("#fde047") : color
                   }
                 />
               </Entity>
@@ -354,7 +354,7 @@ export default function GlobeView() {
               >
                 <PointGraphics
                   pixelSize={isSelected ? 14 : 10}
-                  color={isSelected ? Color.fromCssColorString("#22d3ee") : color}
+                  color={isSelected ? Color.fromCssColorString("#fde047") : color}
                   outlineColor={Color.WHITE}
                   outlineWidth={1.5}
                   heightReference={HeightReference.NONE}
@@ -397,7 +397,7 @@ export default function GlobeView() {
               <PolylineGraphics
                 positions={pairPositions}
                 width={isSel ? 3 : 1.5}
-                material={isSel ? Color.fromCssColorString("#f97316") : riskCesiumColor(c.pc_classical ?? null).withAlpha(0.7)}
+                material={isSel ? Color.fromCssColorString("#fde047") : riskCesiumColor(c.pc_classical ?? null).withAlpha(0.7)}
               />
             </Entity>
           );

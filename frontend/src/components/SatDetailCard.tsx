@@ -33,12 +33,15 @@ export default function SatDetailCard() {
   const setClickedSat = useOrbitShieldStore((s) => s.setClickedSat);
   const [meta, setMeta] = useState<SatelliteResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (clickedSatId === null) {
       setMeta(null);
+      setExpanded(false);
       return;
     }
+    setExpanded(false);  // peek mode on each new selection
     let cancelled = false;
     setLoading(true);
     fetchMeta(clickedSatId).then((m) => {
@@ -68,7 +71,12 @@ export default function SatDetailCard() {
     status === "DEBRIS" ? "var(--os-risk-high)" : "var(--os-risk-low)";
 
   return (
-    <div className="os-satcard">
+    <div
+      className={`os-satcard ${expanded ? "is-expanded" : "is-peek"}`}
+      onClick={() => !expanded && setExpanded(true)}
+      role={!expanded ? "button" : undefined}
+      aria-expanded={expanded}
+    >
       <div className="os-satcard-bar" style={{ background: regimeColor }} />
       <div className="os-satcard-body">
         <div className="os-satcard-top">
@@ -92,7 +100,10 @@ export default function SatDetailCard() {
             </div>
           </div>
           <button
-            onClick={() => setClickedSat(null)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setClickedSat(null);
+            }}
             className="os-icon-btn"
             aria-label="Close"
           >
