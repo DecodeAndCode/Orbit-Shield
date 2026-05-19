@@ -47,7 +47,7 @@ export default function App() {
           <SatDetailCard />
           <ResetViewButton />
 
-          <div className={`os-detail-drawer ${detailCollapsed ? "collapsed" : ""}`}>
+          <div className={`os-detail-drawer ${detailCollapsed ? "collapsed" : ""} ${selectedId ? "" : "is-empty"}`}>
             <div className="os-drawer-handle" onClick={toggleDetail}>
               <span>{selectedId ? `Event Detail · #${selectedId}` : "Event Detail"}</span>
               <svg className="os-drawer-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

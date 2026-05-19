@@ -1144,6 +1144,24 @@ input[type="range"]::-moz-range-thumb {
   .os-search-results { max-height: 35vh; }
   /* Cap search overlay so it doesn't grow with results */
   .os-search-overlay { max-height: 45vh; }
+
+  /* iOS Safari auto-zooms when an input has font-size <16px on focus.
+     Bump all inputs to 16px on mobile to prevent that zoom-in. */
+  .os-search input,
+  .os-search-overlay input,
+  .os-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Hide detail drawer entirely on mobile when collapsed — keeps globe clear.
+     Tap any conjunction card to open it. */
+  .os-detail-drawer.collapsed { display: none; }
 }
 
 /* Clickable timeline header — covers full bar */
