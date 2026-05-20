@@ -1,10 +1,13 @@
 """CRUD /api/alerts — alert configuration management."""
 
 import logging
+import re
+import time
+from collections import defaultdict, deque
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import AlertConfigCreate, AlertConfigResponse, AlertConfigUpdate
@@ -14,6 +17,21 @@ from src.db.session import get_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+_RL_WINDOW_SEC = 3600  # 1h sliding window
+_RL_MAX = 5  # max alert creates per IP per window
+_rl_hits: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _rate_limit_create(ip: str) -> None:
+    now = time.monotonic()
+    bucket = _rl_hits[ip]
+    while bucket and bucket[0] <= now - _RL_WINDOW_SEC:
+        bucket.popleft()
+    if len(bucket) >= _RL_MAX:
+        raise HTTPException(status_code=429, detail="Too many alert configurations. Try again later.")
+    bucket.append(now)
 
 
 async def _send_confirmation(email: str, threshold: float, watched: list[int] | None) -> None:
@@ -59,20 +77,39 @@ async def list_alerts(
 @router.post("/alerts", status_code=201)
 async def create_alert(
     body: AlertConfigCreate,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> AlertConfigResponse:
+    ip = (request.client.host if request.client else "unknown") or "unknown"
+    _rate_limit_create(ip)
+
+    channels = body.notification_channels or {}
+    email = channels.get("email") if isinstance(channels, dict) else None
+    if email is not None:
+        if not isinstance(email, str) or not _EMAIL_RE.match(email.strip()):
+            raise HTTPException(status_code=422, detail="Invalid email address")
+        email = email.strip().lower()
+        channels = {**channels, "email": email}
+        # Cap total enabled alerts per email to prevent abuse
+        existing = (
+            await session.execute(
+                select(func.count()).select_from(AlertConfig).where(
+                    AlertConfig.notification_channels["email"].astext == email
+                )
+            )
+        ).scalar_one()
+        if existing >= 10:
+            raise HTTPException(status_code=429, detail="Alert quota exceeded for this email")
+
     config = AlertConfig(
         watched_norad_ids=body.watched_norad_ids,
         pc_threshold=body.pc_threshold,
-        notification_channels=body.notification_channels,
+        notification_channels=channels or None,
         enabled=body.enabled,
     )
     session.add(config)
     await session.flush()
     await session.refresh(config)
-    # Send confirmation email so user gets instant feedback that alert is wired
-    channels = body.notification_channels or {}
-    email = channels.get("email") if isinstance(channels, dict) else None
     if email:
         await _send_confirmation(email, body.pc_threshold, body.watched_norad_ids)
     return AlertConfigResponse.model_validate(config)

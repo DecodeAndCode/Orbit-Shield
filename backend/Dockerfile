@@ -21,6 +21,10 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts
 
+RUN useradd --create-home --shell /usr/sbin/nologin --uid 10001 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \

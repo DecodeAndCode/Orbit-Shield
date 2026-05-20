@@ -29,10 +29,11 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://orbit-shield.vercel.app",
-        "https://*.vercel.app",
+        "https://orbit-shield-seven.vercel.app",
     ],
+    allow_origin_regex=r"https://orbit-shield(-[a-z0-9-]+)?\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
