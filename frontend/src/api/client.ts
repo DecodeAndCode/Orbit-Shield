@@ -24,6 +24,7 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 export function useSatellites(search?: string, regime?: string) {
   return useQuery({
     queryKey: ["satellites", search, regime],
+    enabled: Boolean(search) || Boolean(regime),
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
