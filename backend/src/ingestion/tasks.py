@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 celery_app = Celery(
     "orbit-shield",
     broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend,
 )
 
 celery_app.conf.update(
@@ -45,18 +44,19 @@ celery_app.conf.update(
     # Reduce Redis polling frequency to lower Upstash command usage
     broker_transport_options={
         "visibility_timeout": 3600,
-        "polling_interval": 30.0,  # worker BRPOP every 30s
+        "polling_interval": 600.0,  # idle worker BRPOP blocks 10min per call
         "priority_steps": [0],  # single queue instead of 4 priority queues (4x fewer BRPOPs)
     },
+    broker_pool_limit=1,  # one broker connection per process
     # Don't store task results we don't read (saves ~50% of Redis writes)
     task_ignore_result=True,
-    result_expires=300,
+    result_backend=None,  # no result backend → no traceback writes on failures
     # Disable Celery control + event channels (extra Redis pub/sub traffic)
     worker_enable_remote_control=False,
     worker_send_task_events=False,
     task_send_sent_event=False,
     # Beat scheduler: poll less frequently
-    beat_max_loop_interval=120,  # check schedule every 2min instead of 30s
+    beat_max_loop_interval=600,  # check schedule every 10min
     beat_schedule={
         "fetch-celestrak-tles": {
             "task": "src.ingestion.tasks.fetch_celestrak_tles",

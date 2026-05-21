@@ -43,7 +43,7 @@ services:
   worker:
     build: ./backend
     container_name: orbit-shield-worker
-    command: celery -A src.ingestion.tasks worker --loglevel=info
+    command: celery -A src.ingestion.tasks worker --loglevel=info --concurrency=1 --without-gossip --without-mingle --without-heartbeat --prefetch-multiplier=1 -Ofair
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-orbit_shield}:${POSTGRES_PASSWORD:-orbit_shield}@postgres:5432/${POSTGRES_DB:-orbit_shield}
@@ -57,7 +57,7 @@ services:
   beat:
     build: ./backend
     container_name: orbit-shield-beat
-    command: celery -A src.ingestion.tasks beat --loglevel=info
+    command: celery -A src.ingestion.tasks beat --loglevel=info --max-interval=600
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-orbit_shield}:${POSTGRES_PASSWORD:-orbit_shield}@postgres:5432/${POSTGRES_DB:-orbit_shield}

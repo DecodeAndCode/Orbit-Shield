@@ -26,8 +26,8 @@ primary_region = "iad"
 
 [processes]
   app = "uvicorn src.main:app --host 0.0.0.0 --port 8000"
-  worker = "celery -A src.ingestion.tasks worker --loglevel=info"
-  beat = "celery -A src.ingestion.tasks beat --loglevel=info"
+  worker = "celery -A src.ingestion.tasks worker --loglevel=info --concurrency=1 --without-gossip --without-mingle --without-heartbeat --prefetch-multiplier=1 -Ofair"
+  beat = "celery -A src.ingestion.tasks beat --loglevel=info --max-interval=600"
 
 [[vm]]
   cpu_kind = "shared"
