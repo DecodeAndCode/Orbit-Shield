@@ -1,0 +1,127 @@
+name: Daily Conjunction Screening
+
+# Replaces the always-on Celery worker + beat that previously ran this
+# pipeline on a hosted VM. A scheduled runner is a better fit: the job runs
+# for ~10-15 minutes once a day, and GitHub-hosted runners are free for
+# public repositories with 7 GB RAM — more headroom than the VM had.
+#
+# Required repository secret:
+#   DATABASE_URL  postgresql+asyncpg://USER:PASSWORD@HOST/DB?ssl=require
+#
+# Optional repository secrets:
+#   SPACETRACK_USERNAME / SPACETRACK_PASSWORD  full ~47k catalog instead of
+#                                              CelesTrak's open subset
+#   RESEND_API_KEY                             send real threshold alerts
+
+on:
+  schedule:
+    # 05:00 UTC daily. Once a day keeps database egress well inside the
+    # Neon free tier; running every few hours is what exhausted it before.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      window_hours:
+        description: "Propagation look-ahead window in hours"
+        required: false
+        default: "24"
+      skip_ingest:
+        description: "Screen the existing catalog without fetching TLEs"
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  # Never let two screenings write to the same database at once.
+  group: screening
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SPACETRACK_USERNAME: ${{ secrets.SPACETRACK_USERNAME }}
+      SPACETRACK_PASSWORD: ${{ secrets.SPACETRACK_PASSWORD }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      PROPAGATION_WINDOW_HOURS: ${{ github.event.inputs.window_hours || '24' }}
+      PROPAGATION_STEP_SECONDS: "60"
+      SKIP_INGEST: ${{ github.event.inputs.skip_ingest || 'false' }}
+      # No Redis in CI. Celery tasks are invoked directly rather than
+      # queued, so the broker URL is never dialled; the space-weather
+      # lookup falls back to its documented defaults when Redis is absent.
+      REDIS_URL: "redis://localhost:6379/0"
+      CELERY_BROKER_URL: "redis://localhost:6379/0"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[ml]"
+
+      - name: Verify database configuration
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set. Add it under"
+            echo "::error::Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          # Strip credentials before logging: keep only host and database.
+          echo "Database target: ${DATABASE_URL##*@}"
+
+      - name: Apply database migrations
+        run: alembic upgrade head
+
+      - name: Run ingestion, screening and pruning
+        run: |
+          if [ "$SKIP_INGEST" = "true" ]; then
+            python scripts/run_pipeline.py --skip-ingest
+          else
+            python scripts/run_pipeline.py
+          fi
+
+      - name: Report results
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+          from src.config import settings
+
+          engine = create_engine(settings.database_url_sync, pool_pre_ping=True)
+          with engine.connect() as conn:
+              rows = conn.execute(text("""
+                  SELECT count(*) AS upcoming,
+                         count(pc_ml) AS with_ml,
+                         count(*) FILTER (WHERE pc_classical >= 1e-4) AS high_risk
+                  FROM conjunctions
+                  WHERE tca >= now()
+              """)).one()
+              size = conn.execute(
+                  text("SELECT pg_size_pretty(pg_database_size(current_database()))")
+              ).scalar()
+
+          summary = os.environ["GITHUB_STEP_SUMMARY"]
+          with open(summary, "a") as fh:
+              fh.write("## Screening results\n\n")
+              fh.write("| Metric | Value |\n|---|---|\n")
+              fh.write(f"| Upcoming conjunctions | {rows.upcoming} |\n")
+              fh.write(f"| With ML prediction | {rows.with_ml} |\n")
+              fh.write(f"| High risk (Pc >= 1e-4) | {rows.high_risk} |\n")
+              fh.write(f"| Database size | {size} |\n")
+          print(f"upcoming={rows.upcoming} with_ml={rows.with_ml} size={size}")
+          PY
