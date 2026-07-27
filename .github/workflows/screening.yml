@@ -83,10 +83,24 @@ jobs:
           # Strip credentials before logging: keep only host and database.
           echo "Database target: ${DATABASE_URL##*@}"
 
+      - name: Check database availability
+        id: db
+        run: |
+          # Serverless Postgres suspends the database when a monthly allowance
+          # is spent. That is not a fault in this project, so every step that
+          # touches the database is gated on this probe and the run stays green.
+          STATE=$(python scripts/run_pipeline.py --check-db | tail -1)
+          echo "state=$STATE" >> "$GITHUB_OUTPUT"
+          if [ "$STATE" = "blocked" ]; then
+            echo "::notice title=Screening skipped::Database is capacity-blocked by the provider. The next run resumes automatically once the allowance resets."
+          fi
+
       - name: Apply database migrations
+        if: steps.db.outputs.state == 'available'
         run: alembic upgrade head
 
       - name: Run ingestion, screening and pruning
+        if: steps.db.outputs.state == 'available'
         run: |
           if [ "$SKIP_INGEST" = "true" ]; then
             python scripts/run_pipeline.py --skip-ingest
@@ -95,7 +109,7 @@ jobs:
           fi
 
       - name: Report results
-        if: always()
+        if: always() && steps.db.outputs.state == 'available'
         run: |
           python - <<'PY'
           import os

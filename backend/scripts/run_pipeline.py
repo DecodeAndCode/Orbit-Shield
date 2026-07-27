@@ -139,7 +139,25 @@ def main() -> int:
         action="store_true",
         help="Screen the existing catalog without fetching new TLEs.",
     )
+    parser.add_argument(
+        "--check-db",
+        action="store_true",
+        help=(
+            "Probe the database and print 'available' or 'blocked' without "
+            "running any step. Always exits 0 so a caller can branch on the "
+            "printed value rather than on the exit status."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.check_db:
+        blocked = database_quota_block()
+        if blocked:
+            logger.warning("Database is capacity-blocked: %s", blocked)
+        # Printed last and on its own line: callers read this with `tail -1`,
+        # so nothing may follow it on stdout.
+        print("blocked" if blocked else "available")
+        return 0
 
     if args.only:
         selected = (args.only,)
