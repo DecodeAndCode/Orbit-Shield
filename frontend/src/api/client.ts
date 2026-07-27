@@ -11,11 +11,50 @@ import type {
 
 const BASE = "";
 
+/**
+ * Where the data being displayed came from.
+ *
+ * The API serves a bundled snapshot when its database is unreachable, so the
+ * dashboard keeps working during provider outages. That data is real but
+ * frozen, and the UI has to say so rather than present it as live.
+ */
+export type DataSource = "live" | "snapshot" | "unknown";
+
+let currentSource: DataSource = "unknown";
+let generatedAt: string | null = null;
+const sourceListeners = new Set<() => void>();
+
+function publishSource(next: DataSource, when: string | null) {
+  if (next === currentSource && when === generatedAt) return;
+  currentSource = next;
+  generatedAt = when;
+  sourceListeners.forEach((notify) => notify());
+}
+
+export function subscribeToDataSource(listener: () => void) {
+  sourceListeners.add(listener);
+  return () => sourceListeners.delete(listener);
+}
+
+export function getDataSource(): DataSource {
+  return currentSource;
+}
+
+export function getDataGeneratedAt(): string | null {
+  return generatedAt;
+}
+
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+
+  const source = res.headers.get("X-Data-Source");
+  if (source === "snapshot" || source === "live") {
+    publishSource(source, res.headers.get("X-Data-Generated-At"));
+  }
+
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   if (res.status === 204) return undefined as T;
   return res.json();

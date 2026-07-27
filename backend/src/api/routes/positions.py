@@ -5,15 +5,17 @@ Used by the frontend globe to render a point cloud of all satellites
 for a small selected subset.
 """
 
+import logging
 import math
 from datetime import datetime, timezone
 
 import numpy as np
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sgp4.api import SatrecArray
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import CatalogPosition, CatalogPositionsResponse
+from src.db import snapshot
 from src.db.session import get_session
 from src.propagation.sgp4_engine import (
     R_EARTH_KM,
@@ -21,19 +23,35 @@ from src.propagation.sgp4_engine import (
     load_catalog,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
 @router.get("/positions", response_model=CatalogPositionsResponse)
 async def positions(
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> CatalogPositionsResponse:
     """Return current TEME→geodetic position for every satellite with a valid TLE/OMM.
 
     One epoch only (now). Vectorized SGP4 over the full catalog. Designed for
     a globe point cloud render — not for trajectory analysis.
+
+    Falls back to the bundled element sets when the database is unreachable.
+    Positions stay genuinely current either way, because propagation happens
+    at request time; only the element sets themselves age.
     """
-    catalog = await session.run_sync(lambda s: load_catalog(s))
+    try:
+        catalog = await session.run_sync(lambda s: load_catalog(s))
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        logger.warning("Database unreachable, serving positions from snapshot")
+        catalog = snapshot.catalog()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
+
     if not catalog:
         return CatalogPositionsResponse(epoch=datetime.now(tz=timezone.utc), count=0, positions=[])
 

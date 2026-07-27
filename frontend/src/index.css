@@ -444,6 +444,20 @@ body::after {
 }
 @keyframes os-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
+/* Shown instead of the green dot when the API is serving its bundled
+   snapshot because the database is unreachable. Amber rather than red:
+   the data is real and satellite positions are still propagated live,
+   it is only the conjunction set that has stopped advancing. */
+.os-dot-amber {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--os-risk-medium);
+  box-shadow: 0 0 8px var(--os-risk-medium);
+  animation: os-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
 .os-icon-btn {
   background: transparent;
   border: 1px solid var(--os-border-base);
