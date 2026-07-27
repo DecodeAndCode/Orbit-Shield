@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { useSatellites } from "../api/client";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  getDataGeneratedAt,
+  getDataSource,
+  subscribeToDataSource,
+  useSatellites,
+} from "../api/client";
 import { useOrbitShieldStore } from "../stores/orbitShieldStore";
 import StatsBar from "./StatsBar";
 
@@ -49,6 +54,20 @@ export default function Header() {
   const setFilterDrawerOpen = useOrbitShieldStore((s) => s.setFilterDrawerOpen);
   const focusOnSat = useOrbitShieldStore((s) => s.focusOnSat);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  // The API falls back to a bundled snapshot when its database is
+  // unreachable. Surface that rather than presenting frozen data as live.
+  const dataSource = useSyncExternalStore(subscribeToDataSource, getDataSource);
+  const generatedAt = useSyncExternalStore(
+    subscribeToDataSource,
+    getDataGeneratedAt
+  );
+  const cachedWhen = generatedAt
+    ? new Date(generatedAt).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -144,10 +163,26 @@ export default function Header() {
           <BellIcon />
           <span className="os-alert-label">Alerts</span>
         </button>
-        <div className="os-live" aria-label="Live data">
-          <span className="os-dot-green" aria-hidden />
-          <span className="os-live-label">Live</span>
-        </div>
+        {dataSource === "snapshot" ? (
+          <div
+            className="os-live"
+            aria-label={`Cached data${cachedWhen ? ` from ${cachedWhen}` : ""}`}
+            title={
+              "The live database is temporarily unavailable. Conjunctions shown " +
+              "are the last computed set" +
+              (cachedWhen ? ` (${cachedWhen})` : "") +
+              ". Satellite positions are still propagated in real time."
+            }
+          >
+            <span className="os-dot-amber" aria-hidden />
+            <span className="os-live-label">Cached</span>
+          </div>
+        ) : (
+          <div className="os-live" aria-label="Live data">
+            <span className="os-dot-green" aria-hidden />
+            <span className="os-live-label">Live</span>
+          </div>
+        )}
       </div>
 
       {searchOpen && (

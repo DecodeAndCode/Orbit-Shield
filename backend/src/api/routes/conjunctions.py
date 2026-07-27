@@ -1,8 +1,9 @@
 """Conjunctions API: list and detail endpoints."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,14 +13,58 @@ from src.api.schemas import (
     ConjunctionDetailResponse,
     ConjunctionResponse,
 )
+from src.db import snapshot
 from src.db.models import Conjunction, Satellite
 from src.db.session import get_session
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
+def _snapshot_conjunctions(
+    now: datetime,
+    cutoff: datetime,
+    min_pc: float | None,
+    limit: int,
+) -> list[ConjunctionResponse]:
+    """Serve the frozen conjunction list bundled with the application.
+
+    Applies the same time-window, threshold and limit filters as the database
+    query so the shape of the response does not change with its source.
+    """
+    results: list[ConjunctionResponse] = []
+    for row in snapshot.conjunctions():
+        tca = datetime.fromisoformat(row["tca"])
+        if not (now <= tca <= cutoff):
+            continue
+        if min_pc is not None and (row.get("pc_classical") or 0) < min_pc:
+            continue
+        created = row.get("created_at")
+        results.append(
+            ConjunctionResponse(
+                id=row["id"],
+                primary_norad_id=row["primary_norad_id"],
+                secondary_norad_id=row["secondary_norad_id"],
+                primary_name=snapshot.satellite_name(row["primary_norad_id"]),
+                secondary_name=snapshot.satellite_name(row["secondary_norad_id"]),
+                tca=tca,
+                miss_distance_km=row.get("miss_distance_km"),
+                relative_velocity_kms=row.get("relative_velocity_kms"),
+                pc_classical=row.get("pc_classical"),
+                pc_ml=row.get("pc_ml"),
+                screening_source=row.get("screening_source"),
+                created_at=datetime.fromisoformat(created) if created else now,
+            )
+        )
+        if len(results) >= limit:
+            break
+    return results
+
+
 @router.get("/conjunctions")
 async def list_conjunctions(
+    response: Response,
     min_pc: float | None = Query(None, ge=0),
     hours_ahead: int = Query(72, ge=1, le=720),
     limit: int = Query(50, ge=1, le=500),
@@ -38,8 +83,19 @@ async def list_conjunctions(
     if min_pc is not None:
         query = query.where(Conjunction.pc_classical >= min_pc)
 
-    result = await session.execute(query)
-    conjunctions = result.scalars().all()
+    try:
+        result = await session.execute(query)
+        conjunctions = result.scalars().all()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        logger.warning("Database unreachable, serving conjunctions from snapshot")
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
+        generated = snapshot.generated_at()
+        if generated:
+            response.headers["X-Data-Generated-At"] = generated
+        return _snapshot_conjunctions(now, cutoff, min_pc, limit)
 
     # Batch-load satellite names
     norad_ids = set()
@@ -77,6 +133,7 @@ async def list_conjunctions(
 @router.get("/conjunctions/{conjunction_id}")
 async def get_conjunction(
     conjunction_id: int,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> ConjunctionDetailResponse:
     query = (
@@ -84,8 +141,37 @@ async def get_conjunction(
         .options(selectinload(Conjunction.cdm_history))
         .where(Conjunction.id == conjunction_id)
     )
-    result = await session.execute(query)
-    conj = result.scalar_one_or_none()
+    try:
+        result = await session.execute(query)
+        conj = result.scalar_one_or_none()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
+        now = datetime.now(timezone.utc)
+        for row in snapshot.conjunctions():
+            if row["id"] != conjunction_id:
+                continue
+            created = row.get("created_at")
+            return ConjunctionDetailResponse(
+                id=row["id"],
+                primary_norad_id=row["primary_norad_id"],
+                secondary_norad_id=row["secondary_norad_id"],
+                primary_name=snapshot.satellite_name(row["primary_norad_id"]),
+                secondary_name=snapshot.satellite_name(row["secondary_norad_id"]),
+                tca=datetime.fromisoformat(row["tca"]),
+                miss_distance_km=row.get("miss_distance_km"),
+                relative_velocity_kms=row.get("relative_velocity_kms"),
+                pc_classical=row.get("pc_classical"),
+                pc_ml=row.get("pc_ml"),
+                screening_source=row.get("screening_source"),
+                created_at=datetime.fromisoformat(created) if created else now,
+                # CDM history is not bundled; the snapshot carries only what
+                # the dashboard needs to render.
+                cdm_history=[],
+            )
+        raise HTTPException(status_code=404, detail="Conjunction not found")
 
     if conj is None:
         raise HTTPException(status_code=404, detail="Conjunction not found")
