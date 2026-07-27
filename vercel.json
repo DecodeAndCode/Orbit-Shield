@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://orbit-shield-api.fly.dev/api/:path*" }
+    { "source": "/api/:path*", "destination": "https://orbit-shield-api.vercel.app/api/:path*" }
   ],
   "experimentalServices": {
     "frontend": {

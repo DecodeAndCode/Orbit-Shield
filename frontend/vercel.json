@@ -5,6 +5,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm install --no-audit --prefer-offline",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://orbit-shield-api.fly.dev/api/:path*" }
+    { "source": "/api/:path*", "destination": "https://orbit-shield-api.vercel.app/api/:path*" }
   ]
 }
