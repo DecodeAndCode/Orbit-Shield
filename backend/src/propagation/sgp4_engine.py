@@ -287,3 +287,39 @@ def propagate_catalog(
         valid_mask=valid_mask,
         norad_ids=norad_ids,
     )
+
+
+def propagate_step_stream(
+    catalog: list[CatalogEntry],
+    start: datetime,
+    end: datetime,
+    step_seconds: int = 60,
+):
+    """Yield per-timestep propagation results to bound RAM usage.
+
+    Unlike `propagate_catalog`, which materializes the full
+    (n_sats, n_steps, 3) positions array in memory, this generator
+    yields one timestep at a time and never holds the time-history.
+
+    Peak RAM is O(n_sats) for positions + velocities + valid mask,
+    regardless of n_steps or window length.
+
+    Yields:
+        Tuple (t_idx, time, positions_at_t, velocities_at_t, valid_at_t):
+            - t_idx (int): time step index, 0-based
+            - time (datetime): UTC timestamp of this step
+            - positions_at_t (np.ndarray): shape (n_sats, 3), TEME km
+            - velocities_at_t (np.ndarray): shape (n_sats, 3), TEME km/s
+            - valid_at_t (np.ndarray[bool]): shape (n_sats,), True where SGP4 succeeded
+    """
+    if not catalog:
+        return
+
+    jd_arr, fr_arr, times = build_time_grid(start, end, step_seconds)
+    sat_array = SatrecArray([entry.satrec for entry in catalog])
+
+    for t in range(len(times)):
+        # sgp4 array API expects array inputs; slice a single-element view
+        errs, pos, vel = sat_array.sgp4(jd_arr[t:t + 1], fr_arr[t:t + 1])
+        valid = errs[:, 0] == 0
+        yield t, times[t], pos[:, 0, :], vel[:, 0, :], valid

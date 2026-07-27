@@ -23,6 +23,7 @@ from src.propagation.sgp4_engine import (
     CatalogEntry,
     PropagationResult,
     datetime_to_jd,
+    propagate_step_stream,
 )
 
 logger = logging.getLogger(__name__)
@@ -346,3 +347,172 @@ def refine_tca(
         relative_position_km=pos_diff,
         relative_velocity_kms_vec=vel_diff,
     )
+
+
+def screen_conjunctions_streaming(
+    catalog: list[CatalogEntry],
+    start: datetime,
+    end: datetime,
+    step_seconds: int = 60,
+    screening_radius_km: float = 5.0,
+    altitude_margin_km: float = 50.0,
+    inclination_threshold_deg: float = 15.0,
+) -> list[ConjunctionEvent]:
+    """Memory-bounded conjunction screening for full catalogs.
+
+    Unlike `screen_conjunctions`, this never materializes the full
+    (n_sats, n_steps, 3) positions array and never builds the O(n^2)
+    candidate-pair set. RAM is bounded by per-timestep working set plus
+    the set of detected close-approach pairs (typically a few hundred).
+
+    Pipeline per timestep:
+      1. Stream one timestep of positions via `propagate_step_stream`.
+      2. Build cKDTree on valid positions and call `query_pairs` with a
+         coarse radius (small return set).
+      3. Filter each returned pair inline by altitude band overlap and
+         inclination difference.
+      4. Track the closest (best) timestep per surviving pair.
+
+    After the stream completes, refine TCA on the surviving pairs using
+    the existing `refine_tca` and `screening_radius_km` cutoff.
+
+    Args:
+        catalog: Full satellite catalog from `load_catalog`.
+        start: Propagation window start (UTC).
+        end: Propagation window end (UTC).
+        step_seconds: Time step in seconds.
+        screening_radius_km: Final post-TCA-refinement cutoff.
+        altitude_margin_km: Margin for the altitude-band overlap check.
+        inclination_threshold_deg: Maximum allowed inclination difference.
+
+    Returns:
+        List of ConjunctionEvent identical in shape to `screen_conjunctions`.
+    """
+    if len(catalog) < 2:
+        return []
+
+    # Coarse radius matches the non-streaming path's logic so we don't
+    # miss approaches that happen between sampled timesteps.
+    max_rel_velocity_kms = 15.0
+    coarse_radius_km = max_rel_velocity_kms * step_seconds / 2.0 + screening_radius_km
+    logger.info(
+        "Streaming screen: coarse radius %.0f km (step=%ds, n_sats=%d)",
+        coarse_radius_km,
+        step_seconds,
+        len(catalog),
+    )
+
+    # Pre-compute per-sat altitude band and inclination as numpy arrays for
+    # cheap inline filtering. Indexed by catalog position.
+    n = len(catalog)
+    perigee_low = np.array(
+        [c.perigee_alt_km - altitude_margin_km for c in catalog],
+        dtype=np.float64,
+    )
+    apogee_high = np.array(
+        [c.apogee_alt_km + altitude_margin_km for c in catalog],
+        dtype=np.float64,
+    )
+    inclination = np.array(
+        [c.inclination_deg for c in catalog],
+        dtype=np.float64,
+    )
+
+    # Best-step tracker: pair -> (timestep_index, distance_km, time)
+    best: dict[tuple[int, int], tuple[int, float, datetime]] = {}
+
+    last_time: datetime | None = None
+    n_steps_seen = 0
+    for t_idx, t_time, pos_at_t, vel_at_t, valid_at_t in propagate_step_stream(
+        catalog, start, end, step_seconds
+    ):
+        last_time = t_time
+        n_steps_seen += 1
+        valid_indices = np.where(valid_at_t)[0]
+        if valid_indices.size < 2:
+            continue
+
+        valid_positions = pos_at_t[valid_indices]
+        tree = cKDTree(valid_positions)
+        local_pairs = tree.query_pairs(r=coarse_radius_km)
+        if not local_pairs:
+            continue
+
+        # Vectorized filtering: convert pair set to arrays and apply all
+        # checks as numpy masks. At full-catalog densities query_pairs can
+        # return ~10^5 pairs per step; a Python loop here dominates runtime.
+        pair_arr = np.array(list(local_pairs), dtype=np.int64)
+        ga = valid_indices[pair_arr[:, 0]]
+        gb = valid_indices[pair_arr[:, 1]]
+        ii = np.minimum(ga, gb)
+        jj = np.maximum(ga, gb)
+
+        keep = (
+            (perigee_low[jj] <= apogee_high[ii])
+            & (perigee_low[ii] <= apogee_high[jj])
+            & (np.abs(inclination[ii] - inclination[jj]) <= inclination_threshold_deg)
+        )
+        if not np.any(keep):
+            continue
+
+        ii, jj = ii[keep], jj[keep]
+
+        # Smooth criterion: linear-motion closest approach within this step.
+        # Relative motion over +/- step/2 around the sample is nearly
+        # rectilinear, so the minimum distance of the linearized motion
+        # d_min^2 = |r|^2 + 2(r.v)tau + |v|^2 tau^2 at tau = -(r.v)/|v|^2
+        # (clipped to the step window) is an accurate lower bound on the
+        # true miss distance near this step. Only pairs whose linearized
+        # minimum dips below a small safety margin of the screening radius
+        # are worth expensive SGP4 TCA refinement. This cuts millions of
+        # coarse kdtree pairs down to the genuinely close ones.
+        rel_r = pos_at_t[ii] - pos_at_t[jj]
+        rel_v = vel_at_t[ii] - vel_at_t[jj]
+        r2 = np.einsum("ij,ij->i", rel_r, rel_r)
+        rv = np.einsum("ij,ij->i", rel_r, rel_v)
+        v2 = np.einsum("ij,ij->i", rel_v, rel_v)
+        tau = np.where(v2 > 1e-12, -rv / np.maximum(v2, 1e-12), 0.0)
+        tau = np.clip(tau, -step_seconds / 2.0, step_seconds / 2.0)
+        dmin2 = r2 + 2.0 * rv * tau + v2 * tau * tau
+
+        # 2x margin absorbs linearization error vs true SGP4 motion
+        threshold2 = (2.0 * screening_radius_km) ** 2
+        close = dmin2 < threshold2
+        if not np.any(close):
+            continue
+
+        ii, jj = ii[close], jj[close]
+        dists = np.sqrt(np.maximum(dmin2[close], 0.0))
+
+        for i, j, dist in zip(ii.tolist(), jj.tolist(), dists.tolist()):
+            existing = best.get((i, j))
+            if existing is None or dist < existing[1]:
+                best[(i, j)] = (t_idx, dist, t_time)
+
+    logger.info(
+        "Streaming screen: %d timesteps processed, %d coarse pair candidates",
+        n_steps_seen,
+        len(best),
+    )
+
+    if not best:
+        return []
+
+    # Stage 4: TCA refinement using existing helper
+    events: list[ConjunctionEvent] = []
+    for (i, j), (_step_idx, _coarse_dist, t_coarse) in best.items():
+        event = refine_tca(
+            catalog[i],
+            catalog[j],
+            t_coarse,
+            window_seconds=step_seconds,
+        )
+        if event is not None and event.miss_distance_km <= screening_radius_km:
+            events.append(event)
+
+    logger.info(
+        "Streaming screen: %d conjunction events within %.1f km after TCA refinement",
+        len(events),
+        screening_radius_km,
+    )
+    return events

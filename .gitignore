@@ -49,3 +49,8 @@ celerybeat-schedule-wal
 graphify-out/
 .playwright-mcp/
 .vercel
+
+# Local env files with credentials (never commit)
+.env.*
+!.env.example
+*.backup

@@ -20,11 +20,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from src.config import settings
-# Import ML tasks to register them with Celery
-try:
-    from src.ml import tasks as ml_tasks  # noqa: F401
-except ImportError:
-    logger.warning("ML tasks not available - ML dependencies may not be installed")
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +77,10 @@ celery_app.conf.update(
             "task": "src.propagation.tasks.run_conjunction_screening",
             "schedule": crontab(minute=0, hour="*/8"),
         },
+        "prune-storage": {
+            "task": "src.ingestion.tasks.prune_storage",
+            "schedule": crontab(minute=0, hour=4),  # daily 04:00 UTC
+        },
         "ml-monitor-performance": {
             "task": "ml.monitor_model_performance",
             "schedule": crontab(minute=0, hour=6),  # Daily at 6am UTC
@@ -105,7 +104,9 @@ def _run_async(coro):
 
 def _get_sync_session() -> Session:
     """Create a synchronous SQLAlchemy session for Celery tasks."""
-    engine = create_engine(settings.database_url_sync)
+    # pre_ping revalidates pooled connections that serverless Postgres
+    # (Neon) silently culls during long compute phases between queries.
+    engine = create_engine(settings.database_url_sync, pool_pre_ping=True)
     return Session(engine)
 
 
@@ -539,3 +540,72 @@ def fetch_conjunction_satellites(self):
         raise self.retry(exc=exc)
     finally:
         session.close()
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=600)
+def prune_storage(self):
+    """Delete expired rows and bound Postgres growth.
+
+    - conjunctions: drop rows whose TCA is more than 1 day in the past.
+    - orbital_elements: keep only the two most recent epochs per satellite.
+    - cdm_history: drop entries older than 30 days.
+
+    Runs daily via beat. Does NOT VACUUM FULL (table locking). Neon's
+    autovacuum reclaims space after the DELETEs.
+    """
+    from sqlalchemy import text
+
+    session = _get_sync_session()
+    try:
+        # cdm_history.conjunction_id is a foreign key onto conjunctions, so the
+        # child rows have to go first or the conjunctions DELETE is rejected.
+        cdm = session.execute(
+            text(
+                """
+                DELETE FROM cdm_history
+                WHERE conjunction_id IN (
+                    SELECT id FROM conjunctions WHERE tca < NOW() - INTERVAL '1 day'
+                )
+                OR tca < NOW() - INTERVAL '30 days'
+                """
+            )
+        )
+        c = session.execute(
+            text("DELETE FROM conjunctions WHERE tca < NOW() - INTERVAL '1 day'")
+        )
+        oe = session.execute(
+            text(
+                """
+                WITH ranked AS (
+                  SELECT id,
+                         ROW_NUMBER() OVER (PARTITION BY norad_id ORDER BY epoch DESC) AS rn
+                  FROM orbital_elements
+                )
+                DELETE FROM orbital_elements
+                WHERE id IN (SELECT id FROM ranked WHERE rn > 2)
+                """
+            )
+        )
+        session.commit()
+        logger.info(
+            "prune_storage: conjunctions=%d, orbital_elements=%d, cdm_history=%d",
+            c.rowcount,
+            oe.rowcount,
+            cdm.rowcount,
+        )
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"prune_storage failed: {exc}")
+        raise self.retry(exc=exc)
+    finally:
+        session.close()
+
+
+# ── Late imports to register tasks with the Celery app ────────────────
+# These must come after celery_app is fully initialized to avoid circular imports.
+from src.propagation import tasks as _propagation_tasks  # noqa: F401, E402
+
+try:
+    from src.ml import tasks as _ml_tasks  # noqa: F401
+except ImportError:
+    logger.warning("ML tasks not available - ML dependencies may not be installed")
