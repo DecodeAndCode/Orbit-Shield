@@ -40,20 +40,12 @@ logger = logging.getLogger("pipeline")
 
 STEPS = ("ingest", "screen", "prune")
 
-# Substrings that identify a provider-side capacity block rather than a fault
-# in this code. Serverless Postgres plans suspend the database when a monthly
-# allowance runs out and resume it when the billing period rolls over, so a
-# scheduled run that lands inside that window should report "skipped", not
-# "broken" — otherwise every night until the reset looks like a regression.
-# Kept deliberately narrow: ordinary connection failures must still fail loudly.
-PROVIDER_QUOTA_SIGNATURES = (
-    "exceeded the data transfer quota",
-    "exceeded the logical size limit",
-    "exceeded the compute time quota",
-    "reaching its monthly free plan limit",
-    "project is paused",
-    "project has been suspended",
-)
+# Shared with the API's offline fallback so the two cannot drift apart: both
+# need the same answer to "is the database administratively unavailable, or
+# genuinely broken?". A scheduled run landing inside a provider capacity
+# window should report "skipped", not "broken", or every night until the
+# allowance resets looks like a regression.
+from src.db.snapshot import PROVIDER_UNAVAILABLE_SIGNATURES as PROVIDER_QUOTA_SIGNATURES  # noqa: E402
 
 
 def database_quota_block() -> str | None:

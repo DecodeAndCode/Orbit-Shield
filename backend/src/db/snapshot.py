@@ -150,12 +150,35 @@ def catalog() -> list[Any]:
     return entries
 
 
-def is_connectivity_error(exc: BaseException) -> bool:
-    """True when an exception means the database could not be reached.
+# Messages a managed provider returns when the database is administratively
+# unavailable rather than broken: a spent monthly allowance, a suspended or
+# paused project. These arrive as ordinary Postgres errors during connection
+# setup — asyncpg raises them before SQLAlchemy wraps anything — so type alone
+# cannot distinguish them from a genuine query fault. Matching on the message
+# is what makes the difference detectable.
+PROVIDER_UNAVAILABLE_SIGNATURES = (
+    "exceeded the data transfer quota",
+    "exceeded the logical size limit",
+    "exceeded the compute time quota",
+    "reaching its monthly free plan limit",
+    "project is paused",
+    "project has been suspended",
+    "quota exceeded",
+)
 
-    Deliberately narrow. Programming errors, missing tables and constraint
-    violations must keep surfacing as real failures rather than silently
-    falling back to stale data.
+
+def is_connectivity_error(exc: BaseException) -> bool:
+    """True when an exception means the database is unusable, not misused.
+
+    Covers two distinct cases:
+
+      * Transport failures — refused connections, dropped sockets, timeouts.
+      * Provider capacity blocks, which arrive as ordinary Postgres errors
+        and so are identified by message rather than by type.
+
+    Deliberately narrow otherwise. Programming errors, missing tables and
+    constraint violations must keep surfacing as real failures rather than
+    silently falling back to stale data.
     """
     from sqlalchemy.exc import (
         DisconnectionError,
@@ -168,4 +191,18 @@ def is_connectivity_error(exc: BaseException) -> bool:
         exc, (OperationalError, InterfaceError, DisconnectionError, SATimeoutError)
     ):
         return True
-    return isinstance(exc, (ConnectionError, TimeoutError, OSError))
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+
+    # Walk the cause chain: the driver error is often wrapped by the time it
+    # reaches a route handler.
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        lowered = str(current).lower()
+        if any(sig in lowered for sig in PROVIDER_UNAVAILABLE_SIGNATURES):
+            return True
+        current = current.__cause__ or current.__context__
+
+    return False

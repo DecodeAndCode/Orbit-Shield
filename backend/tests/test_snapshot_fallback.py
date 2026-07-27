@@ -28,6 +28,34 @@ class TestConnectivityClassification:
         assert snapshot.is_connectivity_error(ConnectionError("refused"))
         assert snapshot.is_connectivity_error(TimeoutError("timed out"))
 
+    def test_provider_capacity_block_is_connectivity(self):
+        """Regression: the driver raises this during connection setup.
+
+        asyncpg surfaces a provider capacity block as a plain Postgres error
+        before SQLAlchemy wraps anything, so it is not an OperationalError and
+        matching on type alone missed it — the API returned 500 instead of
+        falling back.
+        """
+
+        class InternalServerError(Exception):
+            """Shaped like asyncpg.exceptions.InternalServerError."""
+
+        exc = InternalServerError(
+            "Your project has exceeded the data transfer quota. "
+            "Upgrade your plan to increase limits."
+        )
+        assert snapshot.is_connectivity_error(exc)
+
+    def test_capacity_block_detected_through_a_cause_chain(self):
+        """The driver error is usually wrapped by the time a route sees it."""
+        root = Exception("Your project has exceeded the data transfer quota.")
+        wrapper = RuntimeError("connection failed")
+        wrapper.__cause__ = root
+        assert snapshot.is_connectivity_error(wrapper)
+
+    def test_paused_project_is_connectivity(self):
+        assert snapshot.is_connectivity_error(Exception("project is paused"))
+
     @pytest.mark.parametrize(
         "exc",
         [

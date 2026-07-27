@@ -42,8 +42,27 @@ app.websocket("/ws/conjunctions")(conjunction_websocket)
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "orbit-shield"}
+async def health_check() -> dict:
+    """Liveness plus the state of the offline fallback.
+
+    The snapshot only matters when the database is unreachable, which is
+    exactly when it is hardest to inspect — so report it here rather than
+    discovering it is missing during an outage.
+    """
+    from src.db import snapshot
+
+    return {
+        "status": "ok",
+        "service": "orbit-shield",
+        "snapshot": {
+            "available": snapshot.available(),
+            "generated_at": snapshot.generated_at(),
+            "satellites": len(snapshot.satellites()),
+            "conjunctions": len(snapshot.conjunctions()),
+            "path": str(snapshot.SNAPSHOT_PATH),
+            "path_exists": snapshot.SNAPSHOT_PATH.exists(),
+        },
+    }
 
 
 @app.get("/")
