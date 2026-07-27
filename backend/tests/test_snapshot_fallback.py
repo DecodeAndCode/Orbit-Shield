@@ -209,3 +209,44 @@ class TestEndpointFallback:
         async with offline_client as client:
             resp = await client.get("/health")
         assert resp.status_code == 200
+
+    async def test_propagate_served_from_snapshot(self, offline_client):
+        """The globe draws conjunction geometry from this endpoint.
+
+        Regression: without a fallback here the conjunction list rendered but
+        the overlays on the globe silently disappeared.
+        """
+        row = snapshot.conjunctions()[0]
+        ids = [row["primary_norad_id"], row["secondary_norad_id"]]
+        async with offline_client as client:
+            resp = await client.post(
+                "/api/propagate",
+                json={"norad_ids": ids, "duration_hours": 2, "step_minutes": 1},
+            )
+        assert resp.status_code == 200
+        assert resp.headers.get(snapshot.SOURCE_HEADER) == snapshot.SOURCE_SNAPSHOT
+        body = resp.json()
+        assert len(body) == 2, "both conjunction partners must propagate"
+        assert body[0]["positions"], "no position samples returned"
+
+    async def test_ml_compare_served_from_snapshot(self, offline_client):
+        row = snapshot.conjunctions()[0]
+        async with offline_client as client:
+            resp = await client.get(f"/api/ml/compare/{row['id']}")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["conjunction_id"] == row["id"]
+        assert body["pc_ml"] is not None
+
+    async def test_satellite_search_served_from_snapshot(self, offline_client):
+        name = snapshot.satellites()[0]["name"]
+        async with offline_client as client:
+            resp = await client.get(f"/api/satellites?search={name}")
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 1
+
+    async def test_satellite_search_by_norad_id(self, offline_client):
+        norad = snapshot.satellites()[0]["norad_id"]
+        async with offline_client as client:
+            resp = await client.get(f"/api/satellites?search={norad}")
+        assert resp.json()["items"][0]["norad_id"] == norad

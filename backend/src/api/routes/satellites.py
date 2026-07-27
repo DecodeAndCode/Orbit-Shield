@@ -1,15 +1,19 @@
 """GET /api/satellites — paginated satellite catalog."""
 
+import logging
 import math
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import SatelliteResponse
+from src.db import snapshot
 from src.db.models import OrbitalElement, Satellite
 from src.db.session import get_session
 from src.propagation.sgp4_engine import MU_EARTH, R_EARTH_KM
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -54,8 +58,60 @@ def _compute_regime(perigee_alt_km: float | None) -> str | None:
         return "GEO"
 
 
+
+def _snapshot_satellites(
+    search: str | None, regime: str | None, limit: int, offset: int
+) -> dict:
+    """Search the bundled catalog when the database is unreachable.
+
+    Reproduces the live query's behaviour: case-insensitive name match, exact
+    NORAD id match for numeric input, computed altitudes and regime, and the
+    same pagination envelope.
+    """
+    entries = {e.norad_id: e for e in snapshot.catalog()}
+    items: list[SatelliteResponse] = []
+
+    for sat in snapshot.satellites():
+        name = sat.get("name") or ""
+        if search:
+            matches_name = search.lower() in name.lower()
+            matches_id = search.isdigit() and sat["norad_id"] == int(search)
+            if not (matches_name or matches_id):
+                continue
+
+        entry = entries.get(sat["norad_id"])
+        perigee = entry.perigee_alt_km if entry else None
+        apogee = entry.apogee_alt_km if entry else None
+        regime_val = _compute_regime(perigee)
+        if regime and regime_val != regime.upper():
+            continue
+
+        items.append(
+            SatelliteResponse(
+                norad_id=sat["norad_id"],
+                name=sat.get("name"),
+                object_type=sat.get("object_type"),
+                country=sat.get("country"),
+                launch_date=None,
+                rcs_size=sat.get("rcs_size"),
+                inclination=round(entry.inclination_deg, 4) if entry else None,
+                perigee_alt_km=round(perigee, 2) if perigee is not None else None,
+                apogee_alt_km=round(apogee, 2) if apogee is not None else None,
+                regime=regime_val,
+            )
+        )
+
+    return {
+        "items": items[offset : offset + limit],
+        "total": len(items),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
 @router.get("/satellites")
 async def list_satellites(
+    response: Response,
     search: str | None = Query(None, description="Filter by name or NORAD ID"),
     regime: str | None = Query(None, description="Filter by orbital regime: LEO, MEO, GEO"),
     limit: int = Query(100, ge=1, le=1000),
@@ -110,11 +166,19 @@ async def list_satellites(
             query = query.where(name_filter)
 
     # Count total matching rows before pagination
-    count_q = select(func.count()).select_from(query.subquery())
-    total: int = (await session.execute(count_q)).scalar_one()
+    try:
+        count_q = select(func.count()).select_from(query.subquery())
+        total: int = (await session.execute(count_q)).scalar_one()
 
-    # Fetch paginated rows
-    rows = (await session.execute(query.offset(offset).limit(limit))).all()
+        # Fetch paginated rows
+        rows = (await session.execute(query.offset(offset).limit(limit))).all()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        logger.warning("Database unreachable, searching the snapshot catalog")
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
+        return _snapshot_satellites(search, regime, limit, offset)
 
     items: list[SatelliteResponse] = []
     for sat, incl, mm, ecc in rows:

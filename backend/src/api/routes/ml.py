@@ -1,12 +1,18 @@
 """GET /api/ml/compare/{conjunction_id} — classical vs ML Pc comparison."""
 
-from fastapi import APIRouter, Depends, HTTPException
+import logging
+from types import SimpleNamespace
+
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import MLCompareResponse
+from src.db import snapshot
 from src.db.models import Conjunction
 from src.db.session import get_session
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,12 +30,29 @@ def _risk_label(pc: float | None) -> str:
 @router.get("/ml/compare/{conjunction_id}")
 async def ml_compare(
     conjunction_id: int,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> MLCompareResponse:
-    result = await session.execute(
-        select(Conjunction).where(Conjunction.id == conjunction_id)
-    )
-    conj = result.scalar_one_or_none()
+    try:
+        result = await session.execute(
+            select(Conjunction).where(Conjunction.id == conjunction_id)
+        )
+        conj = result.scalar_one_or_none()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
+        row = next(
+            (r for r in snapshot.conjunctions() if r["id"] == conjunction_id), None
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Conjunction not found")
+        conj = SimpleNamespace(
+            id=row["id"],
+            pc_classical=row.get("pc_classical"),
+            pc_ml=row.get("pc_ml"),
+        )
 
     if conj is None:
         raise HTTPException(status_code=404, detail="Conjunction not found")

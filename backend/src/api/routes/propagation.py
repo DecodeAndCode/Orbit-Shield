@@ -1,18 +1,22 @@
 """POST /api/propagate — run SGP4 propagation for selected satellites."""
 
+import logging
 import math
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import PropagateRequest, PropagateResponse, SatellitePosition
+from src.db import snapshot
 from src.db.session import get_session
 from src.propagation.sgp4_engine import (
     R_EARTH_KM,
     load_catalog,
     propagate_catalog,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -38,6 +42,7 @@ def _teme_to_geodetic(x_km: float, y_km: float, z_km: float) -> tuple[float, flo
 @router.post("/propagate")
 async def propagate(
     req: PropagateRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> list[PropagateResponse]:
     """Propagate selected satellites over the requested time window.
@@ -45,15 +50,28 @@ async def propagate(
     Loads TLEs from the database, runs SGP4 batch propagation, and returns
     position/velocity time series in TEME frame with geodetic coordinates.
 
+    Falls back to the bundled element sets when the database is unreachable.
+    The globe draws conjunction geometry from this endpoint, so without the
+    fallback those overlays vanish even while the conjunction list renders.
+
     Args:
         req: Propagation request with NORAD IDs, duration, and time step.
+        response: Response object, used to report which source served this.
         session: Async database session (injected).
 
     Returns:
         List of PropagateResponse, one per requested satellite that has valid TLEs.
     """
-    # load_catalog uses sync SQLAlchemy Session — bridge via run_sync
-    catalog = await session.run_sync(lambda s: load_catalog(s))
+    try:
+        # load_catalog uses sync SQLAlchemy Session — bridge via run_sync
+        catalog = await session.run_sync(lambda s: load_catalog(s))
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_LIVE
+    except Exception as exc:
+        if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
+            raise
+        logger.warning("Database unreachable, propagating from snapshot")
+        catalog = snapshot.catalog()
+        response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
 
     if not catalog:
         return []
