@@ -1,0 +1,20 @@
+# Runtime dependencies for the read-only API deployed as Vercel functions.
+#
+# Deliberately much smaller than pyproject.toml's dependency set. The API only
+# reads precomputed results from the database and propagates positions for the
+# globe view; the heavy work (conjunction screening, classical Pc, XGBoost
+# inference) happens in the scheduled GitHub Actions pipeline, which installs
+# the full set via `pip install -e ".[ml]"`.
+#
+# Excluded on purpose: scipy, pandas, astropy, xgboost, scikit-learn, celery,
+# redis, alembic, psycopg2. Together they are hundreds of megabytes and would
+# push the function bundle past the serverless size limit for no benefit.
+
+fastapi>=0.115.0
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+httpx>=0.28.0
+sgp4>=2.23
+numpy>=2.1

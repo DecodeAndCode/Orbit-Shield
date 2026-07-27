@@ -20,6 +20,7 @@ COPY src ./src
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts
+COPY models ./models
 
 RUN useradd --create-home --shell /usr/sbin/nologin --uid 10001 appuser \
     && chown -R appuser:appuser /app

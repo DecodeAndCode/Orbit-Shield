@@ -99,8 +99,8 @@ def run_conjunction_screening(self):
     6. Upsert detected conjunctions with screening_source='COMPUTED'
     """
     from src.db.models import Conjunction
-    from src.propagation.sgp4_engine import load_catalog, propagate_catalog
-    from src.propagation.screening import screen_conjunctions
+    from src.propagation.sgp4_engine import load_catalog
+    from src.propagation.screening import screen_conjunctions_streaming
     from src.propagation.probability import (
         compute_collision_probability,
         estimate_covariance_from_tles,
@@ -120,33 +120,32 @@ def run_conjunction_screening(self):
             logger.warning("Fewer than 2 satellites in catalog, skipping screening")
             return {"status": "skipped", "reason": "insufficient_catalog"}
 
-        # 2. Propagate
+        # 2-3. Streaming propagation + screening (memory-bounded for full catalog)
         now = datetime.now(timezone.utc)
         end = now + timedelta(hours=settings.propagation_window_hours)
 
         logger.info(
-            "Propagating %d satellites from %s to %s (step=%ds)",
+            "Streaming propagation+screening: %d sats from %s to %s (step=%ds)",
             len(catalog),
             now.isoformat(),
             end.isoformat(),
             settings.propagation_step_seconds,
         )
 
-        prop_result = propagate_catalog(
+        events = screen_conjunctions_streaming(
             catalog,
             start=now,
             end=end,
             step_seconds=settings.propagation_step_seconds,
-        )
-
-        # 3. Screen
-        events = screen_conjunctions(
-            catalog,
-            prop_result,
             screening_radius_km=settings.screening_radius_km,
             altitude_margin_km=settings.altitude_overlap_margin_km,
             inclination_threshold_deg=settings.inclination_filter_deg,
         )
+
+        # Screening can run for many minutes with no DB traffic; serverless
+        # Postgres may have culled the idle connection. Reset transaction
+        # state so the write phase starts on a clean connection.
+        session.rollback()
 
         # 4. Compute Pc for each event
         # Build covariance cache: norad_id -> (3x3 covariance, source)
@@ -158,32 +157,40 @@ def run_conjunction_screening(self):
         # Build a lookup from norad_id to catalog entry for altitude info
         norad_to_entry = {entry.norad_id: entry for entry in catalog}
 
-        # Cache orbital features for ML if available
+        # Cache orbital features in bulk (3 queries for the whole set rather
+        # than 3 per satellite — the per-satellite form made full-catalog runs
+        # unusable against a remote database).
         orbital_features_cache: dict[int, dict[str, float]] = {}
-        if ml_engine and ml_engine.has_covariance_model:
-            try:
-                from src.ml.features.orbital import extract_satellite_features
+        try:
+            from src.ml.features.orbital import extract_features_bulk
 
-                for nid in norad_ids_needed:
-                    feat = extract_satellite_features(nid, session, now)
-                    if feat is not None:
-                        orbital_features_cache[nid] = feat
-            except Exception:
-                logger.debug("ML feature extraction failed", exc_info=True)
+            orbital_features_cache = extract_features_bulk(
+                list(norad_ids_needed), session, now
+            )
+        except Exception:
+            logger.debug("Bulk orbital feature extraction failed", exc_info=True)
 
         # Build covariance cache with ML as priority 1
         covariance_cache: dict[int, tuple[np.ndarray, str]] = {}
         for nid in norad_ids_needed:
+            feats = orbital_features_cache.get(nid)
+
             # Priority 1: ML covariance prediction
-            if ml_engine and nid in orbital_features_cache:
-                ml_result = ml_engine.predict_covariance(orbital_features_cache[nid])
+            if ml_engine and feats is not None:
+                ml_result = ml_engine.predict_covariance(feats)
                 if ml_result is not None:
                     covariance_cache[nid] = ml_result
                     continue
 
-            # Priority 2: TLE ensemble
-            satrecs = _load_recent_satrecs(session, nid, n=10)
-            cov = estimate_covariance_from_tles(satrecs, now)
+            # Priority 2: TLE ensemble — needs at least 3 recent TLEs. Skip the
+            # per-satellite query entirely when the bulk counts already show
+            # there aren't enough (retention keeps only the latest epochs).
+            enough_tles = feats is None or feats.get("tle_count_30d", 0) >= 3
+            cov = None
+            if enough_tles:
+                satrecs = _load_recent_satrecs(session, nid, n=10)
+                cov = estimate_covariance_from_tles(satrecs, now)
+
             if cov is not None:
                 covariance_cache[nid] = (cov, "tle_ensemble")
             else:
@@ -325,7 +332,7 @@ def run_conjunction_screening(self):
 
         return {
             "status": "ok",
-            "satellites_propagated": int(prop_result.valid_mask.sum()),
+            "satellites_propagated": len(catalog),
             "conjunctions_detected": len(events),
             "pc_computed": pc_computed,
             "pc_ml_computed": pc_ml_computed,

@@ -170,6 +170,106 @@ def extract_satellite_features(
     }
 
 
+def extract_features_bulk(
+    norad_ids: list[int],
+    session: Session,
+    reference_time: datetime | None = None,
+) -> dict[int, dict[str, float]]:
+    """Extract orbital features for many satellites using 3 total queries.
+
+    `extract_satellite_features` issues 3 queries per satellite. Across a
+    full-catalog screening (~30k satellites) that is ~90k round trips, which
+    is prohibitively slow and bandwidth-hungry against a remote/serverless
+    database. This variant fetches everything set-wise instead.
+
+    Args:
+        norad_ids: NORAD catalog IDs to extract features for.
+        session: Synchronous SQLAlchemy session.
+        reference_time: Reference time for TLE age. Defaults to now (UTC).
+
+    Returns:
+        Dict mapping norad_id -> feature dict (same 14 keys as
+        `extract_satellite_features`). Satellites with no orbital element
+        row are omitted.
+    """
+    if reference_time is None:
+        reference_time = datetime.now(timezone.utc)
+    if not norad_ids:
+        return {}
+
+    ids = list(set(norad_ids))
+    cutoff = reference_time - timedelta(days=30)
+
+    # Query 1: latest orbital element per satellite
+    latest_epoch = (
+        select(
+            OrbitalElement.norad_id.label("norad_id"),
+            func.max(OrbitalElement.epoch).label("max_epoch"),
+        )
+        .where(OrbitalElement.norad_id.in_(ids))
+        .group_by(OrbitalElement.norad_id)
+        .subquery()
+    )
+    latest_stmt = select(OrbitalElement).join(
+        latest_epoch,
+        (OrbitalElement.norad_id == latest_epoch.c.norad_id)
+        & (OrbitalElement.epoch == latest_epoch.c.max_epoch),
+    )
+    latest_by_id: dict[int, OrbitalElement] = {}
+    for oe in session.execute(latest_stmt).scalars():
+        latest_by_id.setdefault(oe.norad_id, oe)
+
+    # Query 2: satellite metadata
+    sat_stmt = select(
+        Satellite.norad_id, Satellite.object_type, Satellite.rcs_size
+    ).where(Satellite.norad_id.in_(ids))
+    meta_by_id = {
+        row[0]: (row[1], row[2]) for row in session.execute(sat_stmt).all()
+    }
+
+    # Query 3: TLE counts in the last 30 days
+    count_stmt = (
+        select(OrbitalElement.norad_id, func.count())
+        .where(
+            OrbitalElement.norad_id.in_(ids),
+            OrbitalElement.epoch >= cutoff,
+        )
+        .group_by(OrbitalElement.norad_id)
+    )
+    count_by_id = {row[0]: row[1] for row in session.execute(count_stmt).all()}
+
+    features: dict[int, dict[str, float]] = {}
+    for nid in ids:
+        oe = latest_by_id.get(nid)
+        if oe is None:
+            continue
+
+        mean_motion = oe.mean_motion or 15.0
+        eccentricity = oe.eccentricity or 0.001
+        inclination = oe.inclination or 0.0
+        bstar = oe.bstar or 0.0
+
+        derived = compute_derived_orbital_features(
+            mean_motion, eccentricity, inclination, bstar
+        )
+
+        obj_type, rcs_size = meta_by_id.get(nid, (None, None))
+
+        features[nid] = {
+            "mean_motion": mean_motion,
+            "eccentricity": eccentricity,
+            "inclination": inclination,
+            "bstar": bstar,
+            **derived,
+            "object_type_encoded": float(OBJECT_TYPE_MAP.get(obj_type, 3)),
+            "rcs_size_encoded": float(RCS_SIZE_MAP.get(rcs_size, 1)),
+            "tle_age_hours": (reference_time - oe.epoch).total_seconds() / 3600.0,
+            "tle_count_30d": float(count_by_id.get(nid, 0)),
+        }
+
+    return features
+
+
 def extract_satellite_features_batch(
     norad_ids: list[int],
     session: Session,
