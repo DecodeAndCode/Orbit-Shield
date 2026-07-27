@@ -40,6 +40,45 @@ logger = logging.getLogger("pipeline")
 
 STEPS = ("ingest", "screen", "prune")
 
+# Substrings that identify a provider-side capacity block rather than a fault
+# in this code. Serverless Postgres plans suspend the database when a monthly
+# allowance runs out and resume it when the billing period rolls over, so a
+# scheduled run that lands inside that window should report "skipped", not
+# "broken" — otherwise every night until the reset looks like a regression.
+# Kept deliberately narrow: ordinary connection failures must still fail loudly.
+PROVIDER_QUOTA_SIGNATURES = (
+    "exceeded the data transfer quota",
+    "exceeded the logical size limit",
+    "exceeded the compute time quota",
+    "reaching its monthly free plan limit",
+    "project is paused",
+    "project has been suspended",
+)
+
+
+def database_quota_block() -> str | None:
+    """Return the provider's message if the database is capacity-blocked.
+
+    Returns None when the database is reachable, or when it is unreachable
+    for any reason other than a recognised quota block — those must surface
+    as genuine failures.
+    """
+    from sqlalchemy import create_engine, text
+
+    from src.config import settings
+
+    try:
+        engine = create_engine(settings.database_url_sync, pool_pre_ping=True)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return None
+    except Exception as exc:
+        message = str(exc)
+        lowered = message.lower()
+        if any(sig in lowered for sig in PROVIDER_QUOTA_SIGNATURES):
+            return message.strip().splitlines()[0]
+        return None
+
 
 def _run_step(name: str, fn) -> tuple[bool, object]:
     """Execute one pipeline step, timing it and trapping exceptions."""
@@ -114,6 +153,18 @@ def main() -> int:
     logger.info("Pipeline start %s UTC", datetime.now(timezone.utc).isoformat())
     logger.info("Database host: %s", db_host)
     logger.info("Steps: %s", ", ".join(selected))
+
+    blocked = database_quota_block()
+    if blocked:
+        logger.warning("Database is capacity-blocked by the provider: %s", blocked)
+        logger.warning(
+            "Skipping this run. It will resume automatically once the "
+            "allowance resets — no code change or manual step required."
+        )
+        # A GitHub Actions notice keeps the run green while making the reason
+        # visible in the workflow summary.
+        print(f"::notice title=Screening skipped::Database unavailable: {blocked}")
+        return 0
 
     handlers = {"ingest": _ingest, "screen": _screen, "prune": _prune}
     outcomes: dict[str, bool] = {}
