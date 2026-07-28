@@ -33,7 +33,7 @@ logger = logging.getLogger("snapshot")
 OUTPUT_PATH = Path(__file__).resolve().parent.parent / "src" / "data" / "snapshot.json.gz"
 
 
-def build(max_conjunctions: int) -> dict:
+def build(max_conjunctions: int, per_day: int) -> dict:
     from sqlalchemy import create_engine, func, select
     from sqlalchemy.orm import Session
 
@@ -111,9 +111,28 @@ def build(max_conjunctions: int) -> dict:
         ]
         logger.info("Satellite metadata: %d rows", len(satellites))
 
+        # Take the highest-risk events from each day rather than the global
+        # top N. A global top-N drawn from a week-long screening can cluster
+        # into a few hours, leaving later days empty as the earlier events
+        # pass their TCA and drop out of the "upcoming" window.
+        ranked = (
+            select(
+                Conjunction.id,
+                func.row_number()
+                .over(
+                    partition_by=func.date(Conjunction.tca),
+                    order_by=Conjunction.pc_classical.desc().nulls_last(),
+                )
+                .label("rn"),
+            )
+            .where(Conjunction.tca >= now)
+            .subquery()
+        )
+        keep_ids = select(ranked.c.id).where(ranked.c.rn <= per_day)
+
         conj_rows = session.execute(
             select(Conjunction)
-            .where(Conjunction.tca >= now)
+            .where(Conjunction.id.in_(keep_ids))
             .order_by(Conjunction.pc_classical.desc().nulls_last())
             .limit(max_conjunctions)
         ).scalars()
@@ -144,10 +163,16 @@ def build(max_conjunctions: int) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--max-conjunctions", type=int, default=500)
+    parser.add_argument("--max-conjunctions", type=int, default=3000)
+    parser.add_argument(
+        "--per-day",
+        type=int,
+        default=400,
+        help="Highest-risk events kept per calendar day of the window.",
+    )
     args = parser.parse_args()
 
-    payload = build(args.max_conjunctions)
+    payload = build(args.max_conjunctions, args.per_day)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(OUTPUT_PATH, "wt", encoding="utf-8", compresslevel=9) as fh:
         json.dump(payload, fh, separators=(",", ":"))

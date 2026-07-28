@@ -22,12 +22,20 @@ export type DataSource = "live" | "snapshot" | "unknown";
 
 let currentSource: DataSource = "unknown";
 let generatedAt: string | null = null;
+let dataExpired = false;
 const sourceListeners = new Set<() => void>();
 
-function publishSource(next: DataSource, when: string | null) {
-  if (next === currentSource && when === generatedAt) return;
+function publishSource(
+  next: DataSource,
+  when: string | null,
+  expired: boolean
+) {
+  if (next === currentSource && when === generatedAt && expired === dataExpired) {
+    return;
+  }
   currentSource = next;
   generatedAt = when;
+  dataExpired = expired;
   sourceListeners.forEach((notify) => notify());
 }
 
@@ -44,6 +52,15 @@ export function getDataGeneratedAt(): string | null {
   return generatedAt;
 }
 
+/**
+ * True when the cached conjunctions have all passed their time of closest
+ * approach. Distinguishes "the cache ran out" from "your filters matched
+ * nothing", which look identical otherwise.
+ */
+export function getDataExpired(): boolean {
+  return dataExpired;
+}
+
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     headers: { "Content-Type": "application/json" },
@@ -52,7 +69,11 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
   const source = res.headers.get("X-Data-Source");
   if (source === "snapshot" || source === "live") {
-    publishSource(source, res.headers.get("X-Data-Generated-At"));
+    publishSource(
+      source,
+      res.headers.get("X-Data-Generated-At"),
+      res.headers.get("X-Data-Expired") === "true"
+    );
   }
 
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);

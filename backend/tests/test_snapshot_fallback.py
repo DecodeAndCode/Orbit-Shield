@@ -11,6 +11,8 @@ The contract being pinned:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
@@ -250,3 +252,48 @@ class TestEndpointFallback:
         async with offline_client as client:
             resp = await client.get(f"/api/satellites?search={norad}")
         assert resp.json()["items"][0]["norad_id"] == norad
+
+    async def test_expired_cache_is_flagged(self, offline_client, monkeypatch):
+        """A cache whose events have all passed must say so.
+
+        Conjunctions are stored with absolute times, so the whole set ages out
+        once its screening window passes. An empty list would otherwise be
+        indistinguishable from "your filters matched nothing".
+        """
+        from datetime import timedelta
+
+        from src.api.routes import conjunctions as route
+
+        stale = datetime.now(timezone.utc) - timedelta(days=2)
+        monkeypatch.setattr(
+            route.snapshot,
+            "conjunctions",
+            lambda: [
+                {
+                    "id": 1,
+                    "primary_norad_id": 1,
+                    "secondary_norad_id": 2,
+                    "tca": stale.isoformat(),
+                    "miss_distance_km": 1.0,
+                    "relative_velocity_kms": 10.0,
+                    "pc_classical": 1e-4,
+                    "pc_ml": 0.5,
+                    "screening_source": "COMPUTED",
+                    "created_at": stale.isoformat(),
+                }
+            ],
+        )
+        async with offline_client as client:
+            resp = await client.get("/api/conjunctions")
+        assert resp.status_code == 200
+        assert resp.json() == []
+        assert resp.headers.get("X-Data-Expired") == "true"
+
+    async def test_current_cache_is_not_flagged_expired(self, offline_client):
+        """The real bundled snapshot must not be reported as expired."""
+        async with offline_client as client:
+            resp = await client.get("/api/conjunctions")
+        assert resp.headers.get("X-Data-Expired") != "true", (
+            "bundled snapshot has aged out — regenerate it with "
+            "scripts/build_snapshot.py"
+        )

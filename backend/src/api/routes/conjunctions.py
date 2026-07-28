@@ -95,6 +95,17 @@ async def list_conjunctions(
         generated = snapshot.generated_at()
         if generated:
             response.headers["X-Data-Generated-At"] = generated
+
+        # Conjunctions are stored with absolute times, so the whole set ages
+        # out once the screening window it came from has passed. Say so
+        # explicitly: an empty list would otherwise be indistinguishable from
+        # "your filters matched nothing", which sends people hunting the wrong
+        # problem.
+        rows = snapshot.conjunctions()
+        if rows and not any(datetime.fromisoformat(r["tca"]) >= now for r in rows):
+            response.headers["X-Data-Expired"] = "true"
+            logger.warning("Every snapshot conjunction has passed its TCA")
+
         return _snapshot_conjunctions(now, cutoff, min_pc, limit)
 
     # Batch-load satellite names

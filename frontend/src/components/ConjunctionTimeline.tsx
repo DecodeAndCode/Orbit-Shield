@@ -1,9 +1,19 @@
-import { useMemo, useEffect } from "react";
-import { useConjunctions } from "../api/client";
+import { useMemo, useEffect, useSyncExternalStore } from "react";
+import {
+  getDataExpired,
+  useConjunctions,
+  subscribeToDataSource,
+} from "../api/client";
 import { useOrbitShieldStore, pcToRiskLevel } from "../stores/orbitShieldStore";
 import ConjunctionCard from "./ConjunctionCard";
 
 export default function ConjunctionTimeline() {
+  // An empty list means something different when the API is serving a cache
+  // whose events have aged out, so distinguish the two.
+  const cacheExpired = useSyncExternalStore(
+    subscribeToDataSource,
+    getDataExpired
+  );
   const hoursAhead = useOrbitShieldStore((s) => s.hoursAhead);
   const minPc = useOrbitShieldStore((s) => s.minPc);
   const activeRisks = useOrbitShieldStore((s) => s.riskLevels);
@@ -94,7 +104,14 @@ export default function ConjunctionTimeline() {
         ))}
         {!isLoading && filtered.length === 0 && !error && (
           <div className="os-detail-empty">
-            No events match current filters
+            {cacheExpired ? (
+              <>
+                Cached conjunctions have all passed their closest approach.
+                Fresh events resume when the live database is reachable again.
+              </>
+            ) : (
+              <>No events match current filters</>
+            )}
           </div>
         )}
       </div>
