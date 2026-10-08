@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     def database_url_sync(self) -> str:
         """Synchronous database URL for Alembic migrations."""
         return (
-            self.database_url.replace("+asyncpg", "")
+            self.database_url.replace("+asyncpg", "+psycopg2")
             .replace("ssl=require", "sslmode=require")
             .replace("ssl=disable", "sslmode=disable")
         )
