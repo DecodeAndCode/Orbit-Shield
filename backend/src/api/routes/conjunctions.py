@@ -91,16 +91,18 @@ async def list_conjunctions(
         if not (snapshot.is_connectivity_error(exc) and snapshot.available()):
             raise
         logger.warning("Database unreachable, serving conjunctions from snapshot")
+        conjunctions = None
+
+    if conjunctions is not None and len(conjunctions) == 0 and snapshot.available():
+        logger.warning("Database returned 0 future conjunctions, falling back to snapshot")
+        conjunctions = None
+
+    if conjunctions is None:
         response.headers[snapshot.SOURCE_HEADER] = snapshot.SOURCE_SNAPSHOT
         generated = snapshot.generated_at()
         if generated:
             response.headers["X-Data-Generated-At"] = generated
 
-        # Conjunctions are stored with absolute times, so the whole set ages
-        # out once the screening window it came from has passed. Say so
-        # explicitly: an empty list would otherwise be indistinguishable from
-        # "your filters matched nothing", which sends people hunting the wrong
-        # problem.
         rows = snapshot.conjunctions()
         if rows and not any(datetime.fromisoformat(r["tca"]) >= now for r in rows):
             response.headers["X-Data-Expired"] = "true"
